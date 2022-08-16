@@ -41,12 +41,11 @@ class MainWindow(QtWidgets.QMainWindow):
     def fileOpen(self):
         path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
             os.path.dirname(self.file) if self.file_loaded else '', "Level files (*.leb)")[0]
-        if path:
-            self.file = path
-        else:
+        if not path:
             return
         
         self.fileClose()
+        self.file = path
 
         try:
             with open(path, 'rb') as f:
