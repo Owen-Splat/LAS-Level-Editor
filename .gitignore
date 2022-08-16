@@ -2,4 +2,5 @@ __pycache__
 .qt_for_python
 /build
 /dist
+build.bat
 LAS-LevelEditor.spec

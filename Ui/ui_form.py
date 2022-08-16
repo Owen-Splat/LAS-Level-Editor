@@ -402,6 +402,12 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
 
+        self.comboBox.setCurrentIndex(4)
+        self.comboBox_2.setCurrentIndex(4)
+        self.comboBox_4.setCurrentIndex(4)
+        self.comboBox_3.setCurrentIndex(4)
+
+
         QMetaObject.connectSlotsByName(MainWindow)
     # setupUi
 

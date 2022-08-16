@@ -823,6 +823,9 @@
        <pointsize>10</pointsize>
       </font>
      </property>
+     <property name="currentIndex">
+      <number>4</number>
+     </property>
      <item>
       <property name="text">
        <string>Local Flag</string>
@@ -1124,6 +1127,9 @@
        <pointsize>10</pointsize>
       </font>
      </property>
+     <property name="currentIndex">
+      <number>4</number>
+     </property>
      <item>
       <property name="text">
        <string>Local Flag</string>
@@ -1233,6 +1239,9 @@
        <pointsize>10</pointsize>
       </font>
      </property>
+     <property name="currentIndex">
+      <number>4</number>
+     </property>
      <item>
       <property name="text">
        <string>Local Flag</string>
@@ -1293,6 +1302,9 @@
       <font>
        <pointsize>10</pointsize>
       </font>
+     </property>
+     <property name="currentIndex">
+      <number>4</number>
      </property>
      <item>
       <property name="text">

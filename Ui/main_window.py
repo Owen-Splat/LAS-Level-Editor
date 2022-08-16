@@ -41,11 +41,13 @@ class MainWindow(QtWidgets.QMainWindow):
     def fileOpen(self):
         path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
             os.path.dirname(self.file) if self.file_loaded else '', "Level files (*.leb)")[0]
-        if not path:
+        if path:
+            self.file = path
+        else:
             return
         
-        self.file = path
-        
+        self.fileClose()
+
         try:
             with open(path, 'rb') as f:
                 self.room_data = leb.Room(f.read())
@@ -123,6 +125,7 @@ class MainWindow(QtWidgets.QMainWindow):
             c.setEnabled(False)
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
             field.setText('')
+        self.setWindowTitle('Level Editor')
 
 
 
