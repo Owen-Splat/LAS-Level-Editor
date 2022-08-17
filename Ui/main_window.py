@@ -135,7 +135,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.data_viewed:
             self.enableEditor()
         
-        self.saveActor(self.current_actor)
+        if self.deleted == -1:
+            self.saveActor(self.current_actor)
+        
         self.current_actor = self.ui.listWidget.currentRow() if self.deleted == -1 else self.current_actor
 
         if self.current_actor != -1:
@@ -185,21 +187,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 act.name = bytes(f'{self.ui.dataName.text()}-{self.ui.dataHex.text()}', 'utf-8')
                 act.type = int(self.ui.dataType.text(), 16)
                 act.roomID = int(self.ui.dataRoomID.text())
-                act.posX = int(self.ui.dataPos_X.text())
-                act.posY = int(self.ui.dataPos_Y.text())
-                act.posZ = int(self.ui.dataPos_Z.text())
-                act.rotX = int(self.ui.dataRot_X.text())
-                act.rotY = int(self.ui.dataRot_Y.text())
-                act.rotZ = int(self.ui.dataRot_Z.text())
-                act.scaleX = int(self.ui.dataScale_X.text())
-                act.scaleY = int(self.ui.dataScale_Y.text())
-                act.scaleZ = int(self.ui.dataScale_Z.text())
+                act.posX = float(self.ui.dataPos_X.text())
+                act.posY = float(self.ui.dataPos_Y.text())
+                act.posZ = float(self.ui.dataPos_Z.text())
+                act.rotX = float(self.ui.dataRot_X.text())
+                act.rotY = float(self.ui.dataRot_Y.text())
+                act.rotZ = float(self.ui.dataRot_Z.text())
+                act.scaleX = float(self.ui.dataScale_X.text())
+                act.scaleY = float(self.ui.dataScale_Y.text())
+                act.scaleZ = float(self.ui.dataScale_Z.text())
 
                 for i in range(8):
                     try:
-                        exec(f'act.parameters[i] = int(self.ui.dataParameters_{i}.text())')
-                    except ValueError:
                         exec(f'act.parameters[i] = bytes(self.ui.dataParameters_{i}.text(), "utf-8")')
+                    except TypeError:
+                        exec(f'act.parameters[i] = int(self.ui.dataParameters_{i}.text())')
                 
                 act.switches[0] = (self.ui.comboBox.currentIndex(), int(self.ui.dataSwitches_0.text()))
                 act.switches[1] = (self.ui.comboBox_2.currentIndex(), int(self.ui.dataSwitches_1.text()))
@@ -237,10 +239,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.file_loaded:
             try:
                 self.deleted = self.current_actor
-                if self.deleted > 0:
-                    self.room_data.actors.pop(self.current_actor)
-                    self.ui.listWidget.takeItem(self.current_actor)
-                    self.ui.listWidget.setCurrentRow(self.deleted)
+                if self.deleted != -1:
+                    self.room_data.actors.pop(self.deleted)
+                    self.ui.listWidget.takeItem(self.deleted)
                     self.deleted = -1
                     if self.ui.listWidget.count() == 0:
                         self.fileClose()

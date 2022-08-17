@@ -1,5 +1,10 @@
+import struct
+
 def readBytes(bytes, start, length, endianness='little'):
 	return int.from_bytes(bytes[start : start + length], endianness)
+
+def readFloat(bytes, start, length, endianness='little'):
+	return struct.unpack('f', bytes[start : start + length])[0]
 
 def readString(data, start):
 	result = b''
@@ -156,15 +161,15 @@ class Actor:
 		self.type = readBytes(data, 0xC, 2)
 		self.xE = readBytes(data, 0xE, 2)
 		self.roomID = readBytes(data, 0x10, 4)
-		self.posX = readBytes(data, 0x14, 4)
-		self.posY = readBytes(data, 0x18, 4)
-		self.posZ = readBytes(data, 0x1C, 4)
-		self.rotX = readBytes(data, 0x20, 4)
-		self.rotY = readBytes(data, 0x24, 4)
-		self.rotZ = readBytes(data, 0x28, 4)
-		self.scaleX = readBytes(data, 0x2C, 4)
-		self.scaleY = readBytes(data, 0x30, 4)
-		self.scaleZ = readBytes(data, 0x34, 4)
+		self.posX = readFloat(data, 0x14, 4)
+		self.posY = readFloat(data, 0x18, 4)
+		self.posZ = readFloat(data, 0x1C, 4)
+		self.rotX = readFloat(data, 0x20, 4)
+		self.rotY = readFloat(data, 0x24, 4)
+		self.rotZ = readFloat(data, 0x28, 4)
+		self.scaleX = readFloat(data, 0x2C, 4)
+		self.scaleY = readFloat(data, 0x30, 4)
+		self.scaleZ = readFloat(data, 0x34, 4)
 
 		self.parameters = []
 		for i in range(8):
@@ -197,15 +202,15 @@ class Actor:
 		packed += self.type.to_bytes(2, 'little')
 		packed += self.xE.to_bytes(2, 'little')
 		packed += self.roomID.to_bytes(4, 'little')
-		packed += self.posX.to_bytes(4, 'little')
-		packed += self.posY.to_bytes(4, 'little')
-		packed += self.posZ.to_bytes(4, 'little')
-		packed += self.rotX.to_bytes(4, 'little')
-		packed += self.rotY.to_bytes(4, 'little')
-		packed += self.rotZ.to_bytes(4, 'little')
-		packed += self.scaleX.to_bytes(4, 'little')
-		packed += self.scaleY.to_bytes(4, 'little')
-		packed += self.scaleZ.to_bytes(4, 'little')
+		packed += struct.pack('f', self.posX) # self.posX.to_bytes(4, 'little')
+		packed += struct.pack('f', self.posY) # self.posY.to_bytes(4, 'little')
+		packed += struct.pack('f', self.posZ) # self.posZ.to_bytes(4, 'little')
+		packed += struct.pack('f', self.rotX) # self.rotX.to_bytes(4, 'little')
+		packed += struct.pack('f', self.rotY) # self.rotY.to_bytes(4, 'little')
+		packed += struct.pack('f', self.rotZ) # self.rotZ.to_bytes(4, 'little')
+		packed += struct.pack('f', self.scaleX) # self.scaleX.to_bytes(4, 'little')
+		packed += struct.pack('f', self.scaleY) # self.scaleY.to_bytes(4, 'little')
+		packed += struct.pack('f', self.scaleZ) # self.scaleZ.to_bytes(4, 'little')
 
 		for i in range(8):
 			param = self.parameters[i]
