@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from PySide6 import QtCore, QtWidgets
-import Ui.main_window as window
+import LevelEditorUI.main_window as window
 import sys
 
 def interruptHandler(sig, frame):
@@ -12,7 +12,7 @@ import signal
 signal.signal(signal.SIGINT, interruptHandler)
 
 app = QtWidgets.QApplication([])
-app.setStyle('Fusion')
+app.setStyle('cleanlooks')
 
 timer = QtCore.QTimer()
 timer.start(100)

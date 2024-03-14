@@ -1,4 +1,4 @@
-# LAS-Level-Editor
+# LAS-Room-Editor
 A GUI editor for LEB files
 
 **LEB** is a custom format used to store room data in Link's Awakening. This editor specifically targets the actor data. You can read more information [here](https://zeldamods.org/las/LEB)
