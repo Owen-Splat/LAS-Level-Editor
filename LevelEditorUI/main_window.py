@@ -1,8 +1,8 @@
 from PySide6 import QtCore, QtWidgets
 from LevelEditorUI.ui_form import Ui_MainWindow
 import LevelEditorCore.Tools.leb as leb
-import numpy as np
 import copy, os, sys, yaml
+import numpy as np
 
 if getattr(sys, "frozen", False):
     root_path = os.path.dirname(sys.executable)
@@ -63,7 +63,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setFixedSize(800, 600)
         self.setWindowTitle('LAS Level Editor')
         self.show()
-    
 
 
     def fileOpen(self):
@@ -94,7 +93,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]} ({i})')
             self.new_key = max(keys) + 1
             self.ui.listWidget.setCurrentRow(0)
-    
 
 
     def fileSave(self):
@@ -115,7 +113,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 message.setWindowTitle('LAS Level Editor')
                 message.setText('File saved successfully')
                 message.exec()
-
 
 
     def fileSaveAs(self):
@@ -142,7 +139,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     message.setWindowTitle('LAS Level Editor')
                     message.setText('File saved successfully')
                     message.exec()
-    
 
 
     def fileClose(self):
@@ -163,7 +159,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
             field.setText('')
         self.setWindowTitle('Level Editor')
-
 
 
     def displayActorInfo(self):
@@ -231,7 +226,6 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # let the GUI know that any further changes are from the user and now should update
         self.manual_editing = True
-    
 
 
     def displayEntryInfo(self):
@@ -248,7 +242,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.dataEntryParameter_2.setText("")
             self.ui.dataEntryParameter_2.setEnabled(False)
             self.ui.dataControlActorID.setText("")
-            self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
+            # self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
         
         act = self.room_data.actors[self.current_actor]
         sect = act.relationships.section_2
@@ -264,7 +258,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.dataEntryParameter_4.setEnabled(False)
             self.ui.dataEntryRail.setValue(-1)
             self.ui.dataEntryPoint.setValue(-1)
-            self.ui.dataCurrentEntry_2.setMaximum(self.ui.dataCurrentEntry_2.value())
+            # self.ui.dataCurrentEntry_2.setMaximum(self.ui.dataCurrentEntry_2.value())
         
         act = self.room_data.actors[self.current_actor]
         sect = act.relationships.section_3
@@ -272,13 +266,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.dataHostActorID.setText(self.room_data.actors[sect[self.ui.dataCurrentEntry_3.value()]].key)
         else:
             self.ui.dataHostActorID.setText("")
-            self.ui.dataCurrentEntry_3.setMaximum(self.ui.dataCurrentEntry_3.value())
+            # self.ui.dataCurrentEntry_3.setMaximum(self.ui.dataCurrentEntry_3.value())
     
-
 
     def saveEntryData(self):
         pass
-
 
 
     def saveActor(self, previous=-1):
@@ -299,11 +291,16 @@ class MainWindow(QtWidgets.QMainWindow):
                 act.scaleY = float(self.ui.dataScale_Y.text())
                 act.scaleZ = float(self.ui.dataScale_Z.text())
 
+                ldict = locals()
                 for i in range(8):
-                    try:
-                        exec(f'act.parameters[i] = bytes(self.ui.dataParameters_{i}.text(), "utf-8")')
-                    except TypeError:
-                        exec(f'act.parameters[i] = int(self.ui.dataParameters_{i}.text())')
+                    exec(f"v = self.ui.dataParameters_{i}.text()")
+                    if str(ldict['v']).isdigit():
+                        act.parameters[i] = int(ldict['v'])
+                    else:
+                        try:
+                            exec(f"act.parameters[i] = float(ldict['v'])")
+                        except TypeError:
+                            exec(f"act.parameters[i] = bytes(ldict['v'], 'utf-8')")
                 
                 act.switches[0] = (self.ui.comboBox.currentIndex(), int(self.ui.dataSwitches_0.text()))
                 act.switches[1] = (self.ui.comboBox_2.currentIndex(), int(self.ui.dataSwitches_1.text()))
@@ -316,7 +313,6 @@ class MainWindow(QtWidgets.QMainWindow):
             
             except IndexError:
                 pass
-    
 
 
     def addActor(self):
@@ -339,7 +335,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
 
 
-
     def deleteButton_Clicked(self):
         if self.file_loaded:
             if not self.room_data.actors[self.current_actor].type in REQUIRED_ACTORS:
@@ -350,7 +345,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     self.showError('Levels require at least 1 actor of this type')
             self.displayActorInfo()
-    
 
 
     def deleteActor(self):
@@ -393,7 +387,6 @@ class MainWindow(QtWidgets.QMainWindow):
             item = self.ui.listWidget.item(i)
             act_name = item.text().split('(')
             item.setText(f'{act_name[0]}({i})')
-    
 
 
     def updateActorType(self): # executed when the type field is edited and updates both the actor and the list
@@ -420,7 +413,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.ui.dataType.findText(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))], QtCore.Qt.MatchExactly))
 
 
-
     def enableEditor(self):
         fields = [f for f in self.ui.tab.children()]
         fields += [f for f in self.ui.groupBox.children()]
@@ -439,7 +431,6 @@ class MainWindow(QtWidgets.QMainWindow):
             if not actor.startswith(('Player', 'null')):
                 self.ui.dataType.addItem(actor)
         self.data_viewed = True
-    
 
 
     def capCurrentEntries(self):
@@ -482,13 +473,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.dataEntryActor_2.setEnabled(False)
 
 
-
     # def updateSect1CurrentEntry(self):
     #     if self.ui.dataEntryActor.value() < 0:
     #         self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
     #     else:
     #         self.ui.dataCurrentEntry.setMaximum(99)
-
 
 
     # def updateSect2CurrentEntry(self):
@@ -498,13 +487,11 @@ class MainWindow(QtWidgets.QMainWindow):
     #         self.ui.dataCurrentEntry.setMaximum(99)
 
 
-
     # def updateSect3CurrentEntry(self):
     #     if self.ui.dataEntryActor.value() < 0:
     #         self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
     #     else:
     #         self.ui.dataCurrentEntry.setMaximum(99)
-
 
 
     def removeTrailingZeros(self, dec: str):
@@ -527,7 +514,6 @@ class MainWindow(QtWidgets.QMainWindow):
             dec_str += '0'
         
         return dec_str
-
 
 
     def showError(self, error_message):
