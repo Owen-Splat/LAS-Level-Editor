@@ -29,6 +29,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super (MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setAcceptDrops(True)
         
         self.file = ''
         self.file_loaded = False
@@ -65,11 +66,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
 
-    def fileOpen(self):
-        path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
-            os.path.dirname(self.file) if self.file_loaded else '', "Room files (*.leb)")[0]
-        if not path:
-            return
+    def fileOpen(self, dragged_file=None):
+        if dragged_file:
+            path = dragged_file
+        else:
+            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
+                os.path.dirname(self.file) if self.file_loaded else '', "Room files (*.leb)")[0]
+            if not path.endswith(".leb"):
+                return
         
         self.fileClose()
         self.file = path
@@ -299,7 +303,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     else:
                         try:
                             exec(f"act.parameters[i] = float(ldict['v'])")
-                        except TypeError:
+                        except ValueError:
                             exec(f"act.parameters[i] = bytes(ldict['v'], 'utf-8')")
                 
                 act.switches[0] = (self.ui.comboBox.currentIndex(), int(self.ui.dataSwitches_0.text()))
@@ -337,7 +341,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def deleteButton_Clicked(self):
         if self.file_loaded:
-            if not self.room_data.actors[self.current_actor].type in REQUIRED_ACTORS:
+            if self.room_data.actors[self.current_actor].type not in REQUIRED_ACTORS:
                 self.deleteActor()
             else:
                 if len([act for act in self.room_data.actors if act.type == self.room_data.actors[self.current_actor].type]) > 1:
@@ -521,3 +525,18 @@ class MainWindow(QtWidgets.QMainWindow):
         message.setWindowTitle('LAS Level Editor')
         message.setText(error_message)
         message.exec()
+
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            links = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")]
+            if links:
+                event.accept()
+                return
+        event.ignore()
+
+
+    def dropEvent(self, event):
+        event.accept()
+        link = [str(l.toLocalFile()) for l in event.mimeData().urls()][0]
+        self.fileOpen(link)
