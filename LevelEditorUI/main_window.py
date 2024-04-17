@@ -243,6 +243,8 @@ class MainWindow(QtWidgets.QMainWindow):
         
         relationship_info['Needed_Positions'] = []
         for entry in act.relationships.section_2:
+            for i, param in enumerate(entry[0]):
+                entry[0][i] = str(param)
             relationship_info['Needed_Positions'].append({
                 'Rail_Index': entry[1],
                 'Point_Index': entry[2],
@@ -290,6 +292,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 act.switches[1] = (self.ui.comboBox_2.currentIndex(), int(self.ui.dataSwitches_1.text()))
                 act.switches[2] = (self.ui.comboBox_3.currentIndex(), int(self.ui.dataSwitches_2.text()))
                 act.switches[3] = (self.ui.comboBox_4.currentIndex(), int(self.ui.dataSwitches_3.text()))
+
+                self.saveEntryData()
             
             except ValueError as e:
                 self.showError(e.args[0])
