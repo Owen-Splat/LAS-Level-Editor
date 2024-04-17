@@ -1,5 +1,5 @@
 from PySide6 import QtCore, QtWidgets
-from LevelEditorUI.ui_form import Ui_MainWindow
+from LevelEditorUI.UI.ui_form import Ui_MainWindow
 import LevelEditorCore.Tools.leb as leb
 import copy, os, sys, yaml
 import numpy as np
@@ -24,13 +24,19 @@ REQUIRED_ACTORS = [0x185]
 
 
 
+class MyDumper(yaml.Dumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super(MyDumper, self).increase_indent(flow, False)
+
+
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super (MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.setAcceptDrops(True)
-        
+
         self.file = ''
         self.file_loaded = False
         self.save_location = ''
@@ -43,7 +49,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_entry = -1
         self.deleted = False
         self.manual_editing = False
-        
+
         self.ui.actionOpen.triggered.connect(self.fileOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
         self.ui.actionSaveAs.triggered.connect(self.fileSaveAs)
@@ -52,15 +58,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.dataType.currentIndexChanged.connect(self.updateActorType)
         self.ui.addButton.clicked.connect(self.addActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
-        self.ui.tabWidget_2.currentChanged.connect(self.saveEntryData)
-        self.ui.dataCurrentEntry.valueChanged.connect(self.displayEntryInfo)
-        # self.ui.dataEntryActor.valueChanged.connect(self.updateSect1CurrentEntry)
-        self.ui.dataCurrentEntry_2.valueChanged.connect(self.displayEntryInfo)
-        # self.ui.dataEntryRail.valueChanged.connect(self.updateSect2CurrentEntry)
-        # self.ui.dataEntryPoint.valueChanged.connect(self.updateSect2CurrentEntry)
-        self.ui.dataCurrentEntry_3.valueChanged.connect(self.displayEntryInfo)
-        # self.ui.dataEntryActor_2.valueChanged.connect(self.updateSect3CurrentEntry)
-        
+
         self.setFixedSize(800, 600)
         self.setWindowTitle('LAS Level Editor')
         self.show()
@@ -87,14 +85,12 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.file_loaded = True
             self.setWindowTitle(os.path.basename(path))
-            # self.ui.dataEntryActor.setMaximum(len(self.room_data.actors))
-            # self.ui.dataEntryActor_2.setMaximum(len(self.room_data.actors))
             self.ui.listWidget.setEnabled(True)
             self.ui.listWidget.clear()
             keys = []
-            for i,act in enumerate(self.room_data.actors):
+            for act in self.room_data.actors:
                 keys.append(act.key)
-                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]} ({i})')
+                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
             self.new_key = max(keys) + 1
             self.ui.listWidget.setCurrentRow(0)
 
@@ -190,7 +186,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.ID_lineEdit.setText(str(act.key))
                 self.ui.dataType.setCurrentIndex(
                     self.ui.dataType.findText(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))], QtCore.Qt.MatchExactly))
-                # self.ui.dataRoomID.setText(str(act.roomID))
                 self.ui.dataPos_X.setText(self.removeTrailingZeros(f'{act.posX:.8f}'))
                 self.ui.dataPos_Y.setText(self.removeTrailingZeros(f'{act.posY:.8f}'))
                 self.ui.dataPos_Z.setText(self.removeTrailingZeros(f'{act.posZ:.8f}'))
@@ -207,7 +202,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     elif isinstance(act.parameters[i], np.float32):
                         param = self.removeTrailingZeros(f'{act.parameters[i]:.8f}')
                     else:
-                        param = act.parameters[i]
+                        param = str(act.parameters[i])
                     exec(f'self.ui.dataParameters_{i}.setText(str(param))')
                 
                 self.ui.dataSwitches_0.setText(str(act.switches[0][1]))
@@ -234,43 +229,31 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def displayEntryInfo(self):
         act = self.room_data.actors[self.current_actor]
-        sect = act.relationships.section_1
-        # self.saveEntryData(section=1, entry=self.ui.dataCurrentEntry)
-        if act.relationships.num_entries_1 > 0:
-            self.ui.dataEntryParameter.setText(str(sect[self.ui.dataCurrentEntry.value()][0][0], 'utf-8'))
-            self.ui.dataEntryParameter_2.setText(str(sect[self.ui.dataCurrentEntry.value()][0][1], 'utf-8'))
-            self.ui.dataControlActorID.setText(self.room_data.actors[sect[self.ui.dataCurrentEntry.value()-1][1]].key)
-        else:
-            self.ui.dataEntryParameter.setText("")
-            self.ui.dataEntryParameter.setEnabled(False)
-            self.ui.dataEntryParameter_2.setText("")
-            self.ui.dataEntryParameter_2.setEnabled(False)
-            self.ui.dataControlActorID.setText("")
-            # self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
+        relationship_info = {}
+
+        relationship_info['Controlled_Actors'] = []
+        for entry in act.relationships.section_1:
+            for i, param in enumerate(entry[0]):
+                entry[0][i] = str(param)
+            relationship_info['Controlled_Actors'].append({
+                self.room_data.actors[entry[1]].key: {
+                    'Parameters': entry[0]
+                }
+            })
         
-        act = self.room_data.actors[self.current_actor]
-        sect = act.relationships.section_2
-        if act.relationships.num_entries_2 > 0:
-            self.ui.dataEntryParameter_3.setText(str(sect[self.ui.dataCurrentEntry_2.value()][0][0], 'utf-8'))
-            self.ui.dataEntryParameter_4.setText(str(sect[self.ui.dataCurrentEntry_2.value()][0][1], 'utf-8'))
-            self.ui.dataEntryRail.setValue(sect[self.ui.dataCurrentEntry_2.value()-1][1])
-            self.ui.dataEntryPoint.setValue(sect[self.ui.dataCurrentEntry_2.value()-1][2])
-        else:
-            self.ui.dataEntryParameter_3.setText("")
-            self.ui.dataEntryParameter_3.setEnabled(False)
-            self.ui.dataEntryParameter_4.setText("")
-            self.ui.dataEntryParameter_4.setEnabled(False)
-            self.ui.dataEntryRail.setValue(-1)
-            self.ui.dataEntryPoint.setValue(-1)
-            # self.ui.dataCurrentEntry_2.setMaximum(self.ui.dataCurrentEntry_2.value())
+        relationship_info['Needed_Positions'] = []
+        for entry in act.relationships.section_2:
+            relationship_info['Needed_Positions'].append({
+                'Rail_Index': entry[1],
+                'Point_Index': entry[2],
+                'Parameters': entry[0]
+            })
         
-        act = self.room_data.actors[self.current_actor]
-        sect = act.relationships.section_3
-        if act.relationships.num_entries_3 > 0:
-            self.ui.dataHostActorID.setText(self.room_data.actors[sect[self.ui.dataCurrentEntry_3.value()]].key)
-        else:
-            self.ui.dataHostActorID.setText("")
-            # self.ui.dataCurrentEntry_3.setMaximum(self.ui.dataCurrentEntry_3.value())
+        relationship_info['Actors_That_Use_Me'] = []
+        for entry in act.relationships.section_3:
+            relationship_info['Actors_That_Use_Me'].append(self.room_data.actors[entry].key)
+        
+        self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
     
 
     def saveEntryData(self):
@@ -281,10 +264,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if previous != -1:
             try:
                 act = self.room_data.actors[previous]
-                # act.key = int(self.ui.dataKey.text())
-                # act.name = bytes(f'{self.ui.dataName.text()}-{self.ui.dataHex.text()}', 'utf-8')
                 act.type = int(ACTORS[self.ui.dataType.currentText()], 16)
-                # act.roomID = int(self.ui.dataRoomID.text())
                 act.posX = float(self.ui.dataPos_X.text())
                 act.posY = float(self.ui.dataPos_Y.text())
                 act.posZ = float(self.ui.dataPos_Z.text())
@@ -329,9 +309,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 name_hex = hex(act.key).split('0x')[1].upper()
                 act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
                 self.room_data.actors.append(act)
-                # self.ui.dataEntryActor.setMaximum(len(self.room_data.actors))
-                # self.ui.dataEntryActor_2.setMaximum(len(self.room_data.actors))
-                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]} ({len(self.room_data.actors)})')
+                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
                 self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
             except ValueError as e:
                 self.showError(e.args[0])
@@ -383,8 +361,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     print('section 3:' + i)
         
         del self.room_data.actors[self.current_actor]
-        # self.ui.dataEntryActor.setMaximum(len(self.room_data.actors))
-        # self.ui.dataEntryActor_2.setMaximum(len(self.room_data.actors))
         self.deleted = True
         self.ui.listWidget.takeItem(self.current_actor)
         for i in range(self.ui.listWidget.count()):
@@ -421,12 +397,6 @@ class MainWindow(QtWidgets.QMainWindow):
         fields = [f for f in self.ui.tab.children()]
         fields += [f for f in self.ui.groupBox.children()]
         fields += [f for f in self.ui.tab_2.children()]
-        fields += [f for f in self.ui.tab_3.children()]
-        fields += [f for f in self.ui.groupBox_2.children()]
-        fields += [f for f in self.ui.tab_4.children()]
-        fields += [f for f in self.ui.groupBox_3.children()]
-        fields += [f for f in self.ui.tab_5.children()]
-        fields += [f for f in self.ui.groupBox_4.children()]
         for field in fields:
             field.setProperty('enabled', True)
         abc_actors = list(copy.deepcopy(ACTORS))
@@ -538,5 +508,5 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def dropEvent(self, event):
         event.accept()
-        link = [str(l.toLocalFile()) for l in event.mimeData().urls()][0]
+        link = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")][0]
         self.fileOpen(link)
