@@ -233,22 +233,24 @@ class MainWindow(QtWidgets.QMainWindow):
 
         relationship_info['Controlled_Actors'] = []
         for entry in act.relationships.section_1:
-            for i, param in enumerate(entry[0]):
-                entry[0][i] = str(param)
+            params = []
+            for param in entry[0]:
+                params.append(str(param))
             relationship_info['Controlled_Actors'].append({
                 self.room_data.actors[entry[1]].key: {
-                    'Parameters': entry[0]
+                    'Parameters': params
                 }
             })
         
         relationship_info['Needed_Positions'] = []
         for entry in act.relationships.section_2:
-            for i, param in enumerate(entry[0]):
-                entry[0][i] = str(param)
+            params = []
+            for param in entry[0]:
+                params.append(str(param))
             relationship_info['Needed_Positions'].append({
                 'Rail_Index': entry[1],
                 'Point_Index': entry[2],
-                'Parameters': entry[0]
+                'Parameters': params
             })
         
         relationship_info['Actors_That_Use_Me'] = []
