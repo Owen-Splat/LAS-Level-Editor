@@ -1,7 +1,6 @@
 __pycache__
 .qt_for_python
 /build
-/dist
 /Test
 run.bat
 test.py
