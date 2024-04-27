@@ -4,11 +4,14 @@ import LevelEditorCore.Tools.leb as leb
 import copy, os, sys, yaml, random
 
 if getattr(sys, "frozen", False):
+    RUNNING_FROM_SOURCE = False
     root_path = os.path.dirname(sys.executable)
 else:
+    RUNNING_FROM_SOURCE = True
     root_path = os.path.dirname(os.path.dirname(__file__))
 
-DATA_PATH = os.path.join(root_path, 'LevelEditorCore/Data')
+data_folder = 'LevelEditorCore/Data' if RUNNING_FROM_SOURCE else 'Data'
+DATA_PATH = os.path.join(root_path, data_folder)
 with open(os.path.join(DATA_PATH, 'actors.yml'), 'r') as f:
     actor_list = yaml.safe_load(f)
 
