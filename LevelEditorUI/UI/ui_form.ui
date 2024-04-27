@@ -1259,7 +1259,7 @@
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">
-      <string>Relationships</string>
+      <string>Link Data (Saving not supported)</string>
      </attribute>
      <widget class="QComboBox" name="comboBox_5">
       <property name="enabled">
@@ -1350,6 +1350,42 @@
         <width>481</width>
         <height>461</height>
        </rect>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="tab_3">
+     <attribute name="title">
+      <string>Useful Info</string>
+     </attribute>
+     <widget class="QLabel" name="label">
+      <property name="geometry">
+       <rect>
+        <x>18</x>
+        <y>25</y>
+        <width>471</width>
+        <height>491</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>1 tile position wise = 1.5 
+
+ X position = left -&gt; right 
+
+ Y position = up -&gt; down (gravity) 
+
+ Z position = forward -&gt; backwards 
+
+
+
+ I am working on a proper level viewer &amp; editor 
+ It will open the flood gates to romhacks 
+ Until then, please be patient :)</string>
+      </property>
+      <property name="textFormat">
+       <enum>Qt::AutoText</enum>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
       </property>
      </widget>
     </widget>

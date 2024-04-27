@@ -1,8 +1,7 @@
 from PySide6 import QtCore, QtWidgets
 from LevelEditorUI.UI.ui_form import Ui_MainWindow
 import LevelEditorCore.Tools.leb as leb
-import copy, os, sys, yaml
-import numpy as np
+import copy, os, sys, yaml, random
 
 if getattr(sys, "frozen", False):
     root_path = os.path.dirname(sys.executable)
@@ -43,12 +42,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.data_viewed = False
         self.room_data = None
-        self.new_key = -1
         self.current_actor = -1
         self.current_section = -1
         self.current_entry = -1
         self.deleted = False
         self.manual_editing = False
+        self.keys = []
 
         self.ui.actionOpen.triggered.connect(self.fileOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
@@ -87,11 +86,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.setWindowTitle(os.path.basename(path))
             self.ui.listWidget.setEnabled(True)
             self.ui.listWidget.clear()
-            keys = []
+            self.keys.clear()
             for act in self.room_data.actors:
-                keys.append(act.key)
+                self.keys.append(act.key)
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
-            self.new_key = max(keys) + 1
             self.ui.listWidget.setCurrentRow(0)
 
 
@@ -199,7 +197,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 for i in range(8):
                     if isinstance(act.parameters[i], bytes):
                         param = str(act.parameters[i], 'utf-8')
-                    elif isinstance(act.parameters[i], np.float32):
+                    elif isinstance(act.parameters[i], float):
                         param = self.removeTrailingZeros(f'{act.parameters[i]:.8f}')
                     else:
                         param = str(act.parameters[i])
@@ -309,8 +307,8 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.file_loaded:
             try:
                 act = copy.deepcopy(self.room_data.actors[self.current_actor])
-                act.key = self.new_key
-                self.new_key += 1
+                while act.key in self.keys:
+                    act.key = random.getrandbits(64)
                 name_str = str(act.name, 'utf-8').split('-')[0]
                 name_hex = hex(act.key).split('0x')[1].upper()
                 act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
@@ -366,6 +364,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 except IndexError:
                     print('section 3:' + i)
         
+        self.keys.remove(self.room_data.actors[self.current_actor].key)
         del self.room_data.actors[self.current_actor]
         self.deleted = True
         self.ui.listWidget.takeItem(self.current_actor)

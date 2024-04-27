@@ -392,6 +392,14 @@ class Ui_MainWindow(object):
         self.textEdit.setObjectName(u"textEdit")
         self.textEdit.setGeometry(QRect(10, 60, 481, 461))
         self.tabWidget.addTab(self.tab_2, "")
+        self.tab_3 = QWidget()
+        self.tab_3.setObjectName(u"tab_3")
+        self.label = QLabel(self.tab_3)
+        self.label.setObjectName(u"label")
+        self.label.setGeometry(QRect(18, 25, 471, 491))
+        self.label.setTextFormat(Qt.AutoText)
+        self.label.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
+        self.tabWidget.addTab(self.tab_3, "")
         MainWindow.setCentralWidget(self.centralwidget)
         self.tabWidget.raise_()
         self.label_2.raise_()
@@ -499,7 +507,21 @@ class Ui_MainWindow(object):
         self.comboBox_7.setItemText(0, QCoreApplication.translate("MainWindow", u"+Enemies Tile:  False", None))
         self.comboBox_7.setItemText(1, QCoreApplication.translate("MainWindow", u"+Enemies Tile:  True", None))
 
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Relationships", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Link Data (Saving not supported)", None))
+        self.label.setText(QCoreApplication.translate("MainWindow", u"1 tile position wise = 1.5 \n"
+"\n"
+" X position = left -> right \n"
+"\n"
+" Y position = up -> down (gravity) \n"
+"\n"
+" Z position = forward -> backwards \n"
+"\n"
+"\n"
+"\n"
+" I am working on a proper level viewer & editor \n"
+" It will open the flood gates to romhacks \n"
+" Until then, please be patient :)", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QCoreApplication.translate("MainWindow", u"Useful Info", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
     # retranslateUi
 
