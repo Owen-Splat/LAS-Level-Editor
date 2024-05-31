@@ -61,6 +61,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.addButton.clicked.connect(self.addActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
 
+        for line in self.findChildren(QtWidgets.QLineEdit):
+            if line.objectName().startswith('dataPos'):
+                line.__class__ = SmartLineEdit
+            elif line.objectName().startswith('dataRot'):
+                line.__class__ = SmartLineEdit
+                line.data_type = 'rot'
+
         self.setFixedSize(800, 600)
         self.setWindowTitle('LAS Level Editor')
         self.show()
@@ -119,10 +126,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def fileSaveAs(self):
         if self.file_loaded:
             path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File As',
-                os.path.join(self.save_location, os.path.basename(self.file)), "Room files (*.leb)")[0]
+                os.path.join(os.path.dirname(self.file), os.path.basename(self.file)), "Room files (*.leb)")[0]
             
             if path:
-                self.save_location = os.path.dirname(path)
                 self.saveActor(self.ui.listWidget.currentRow())
                 try:
                     actor_keys = []
@@ -136,6 +142,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 except (ValueError, OverflowError) as e:
                     self.showError(e.args[0])
                 else:
+                    self.file = path
                     message = QtWidgets.QMessageBox()
                     message.setWindowTitle('LAS Level Editor')
                     message.setText('File saved successfully')
@@ -145,7 +152,6 @@ class MainWindow(QtWidgets.QMainWindow):
     def fileClose(self):
         self.file = ''
         self.file_loaded = False
-        self.save_location = ''
         self.manual_editing = False
         self.current_actor = -1
         self.current_section = -1
@@ -518,3 +524,45 @@ class MainWindow(QtWidgets.QMainWindow):
         event.accept()
         link = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")][0]
         self.fileOpen(link)
+
+
+
+class SmartLineEdit(QtWidgets.QLineEdit):
+    data_type = 'pos'
+
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        if event.key() == QtCore.Qt.Key_Up:
+            if self.data_type == 'pos': self.moveTile('right')
+            if self.data_type == 'rot': self.rotateTile('up')
+        elif event.key() == QtCore.Qt.Key_Down:
+            if self.data_type == 'pos': self.moveTile('left')
+            if self.data_type == 'rot': self.rotateTile('down')
+        elif event.key() == QtCore.Qt.Key_Right:
+            if self.data_type == 'rot': self.rotateTile('right')
+        elif event.key() == QtCore.Qt.Key_Left:
+            if self.data_type == 'rot': self.rotateTile('left')
+
+
+    def moveTile(self, dir):
+        try:
+            pos = float(self.text())
+        except ValueError:
+            return
+        if dir == 'right':
+            amount = 1.5
+        else:
+            amount = -1.5
+        self.setText(str(pos + amount))
+
+
+    def rotateTile(self, dir):
+        if dir == 'down':
+            rot = 0.0
+        elif dir == 'right':
+            rot = 90.0
+        elif dir == 'up':
+            rot = 180.0
+        else:
+            rot = -90.0
+        self.setText(str(rot))

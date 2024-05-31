@@ -1371,9 +1371,15 @@
 
  X position = left -&gt; right 
 
- Y position = up -&gt; down (gravity) 
+ Y position = down -&gt; up (gravity) 
 
- Z position = forward -&gt; backwards 
+ Z position = forward -&gt; backwards
+
+When focused on a position, up arrow key moves it 1 tile in the positive direction
+Down arrow for opposite
+
+When focused on a rotation, the Y rotation is what you will usually want to edit
+It will make it face in the direction of the arrow key
 
 
 

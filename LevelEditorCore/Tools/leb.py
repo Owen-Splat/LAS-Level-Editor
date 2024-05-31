@@ -133,16 +133,16 @@ class FixedHash:
 		result = b''
 		result += intro
 
-		if (len(result) + offset) % 8 != 0:
-			result += b'\x00\x00\x00\x00' # Pad with 4 null bytes if it's not at a multiple of 8
+		while (len(result) + offset) % 8 != 0:
+			result += b'\x00'
 		result += entries_sect
 
-		if (len(result) + offset) % 8 != 0:
-			result += b'\x00\x00\x00\x00'
+		while (len(result) + offset) % 8 != 0:
+			result += b'\x00'
 		result += entry_offsets_sect
 
-		if (len(result) + offset) % 8 != 0:
-			result += b'\x00\x00\x00\x00'
+		while (len(result) + offset) % 8 != 0:
+			result += b'\x00'
 		result += data_sect
 
 		while (len(result) + offset) % 4 != 0:
