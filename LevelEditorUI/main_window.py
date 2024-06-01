@@ -63,10 +63,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         for line in self.findChildren(QtWidgets.QLineEdit):
             if line.objectName().startswith('dataPos'):
-                line.__class__ = SmartLineEdit
+                line.__class__ = PosLineEdit
             elif line.objectName().startswith('dataRot'):
-                line.__class__ = SmartLineEdit
-                line.data_type = 'rot'
+                line.__class__ = RotLineEdit
 
         self.setFixedSize(800, 600)
         self.setWindowTitle('LAS Level Editor')
@@ -318,12 +317,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 act = copy.deepcopy(self.room_data.actors[self.current_actor])
                 while act.key in self.keys:
                     act.key = random.getrandbits(64)
+                self.keys.append(act.key)
                 name_str = str(act.name, 'utf-8').split('-')[0]
                 name_hex = hex(act.key).split('0x')[1].upper()
                 act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
                 self.room_data.actors.append(act)
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
                 self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
+                self.ui.ID_lineEdit.setText(str(act.key))
             except ValueError as e:
                 self.showError(e.args[0])
             except IndexError:
@@ -527,42 +528,50 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 
-class SmartLineEdit(QtWidgets.QLineEdit):
-    data_type = 'pos'
+class PosLineEdit(QtWidgets.QLineEdit):
+    directions = {
+        'X': (QtCore.Qt.Key_Left, QtCore.Qt.Key_Right),
+        'Y': (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up),
+        'Z': (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down)
+    }
 
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
-        if event.key() == QtCore.Qt.Key_Up:
-            if self.data_type == 'pos': self.moveTile('right')
-            if self.data_type == 'rot': self.rotateTile('up')
-        elif event.key() == QtCore.Qt.Key_Down:
-            if self.data_type == 'pos': self.moveTile('left')
-            if self.data_type == 'rot': self.rotateTile('down')
-        elif event.key() == QtCore.Qt.Key_Right:
-            if self.data_type == 'rot': self.rotateTile('right')
-        elif event.key() == QtCore.Qt.Key_Left:
-            if self.data_type == 'rot': self.rotateTile('left')
+        self.moveTile(event.key())
 
-
-    def moveTile(self, dir):
+    def moveTile(self, key):
         try:
             pos = float(self.text())
         except ValueError:
             return
-        if dir == 'right':
+        
+        dirs = self.directions[self.objectName()[-1]]
+        if key == dirs[0]:
+            amount = -1.5
+        elif key == dirs[1]:
             amount = 1.5
         else:
-            amount = -1.5
+            return
+        
         self.setText(str(pos + amount))
 
 
-    def rotateTile(self, dir):
-        if dir == 'down':
+
+class RotLineEdit(QtWidgets.QLineEdit):
+    def keyPressEvent(self, event):
+        super().keyPressEvent(event)
+        self.rotateTile(event.key())
+
+    def rotateTile(self, key):
+        if key == QtCore.Qt.Key_Down:
             rot = 0.0
-        elif dir == 'right':
+        elif key == QtCore.Qt.Key_Right:
             rot = 90.0
-        elif dir == 'up':
+        elif key == QtCore.Qt.Key_Up:
             rot = 180.0
-        else:
+        elif key == QtCore.Qt.Key_Left:
             rot = -90.0
+        else:
+            return
+        
         self.setText(str(rot))
