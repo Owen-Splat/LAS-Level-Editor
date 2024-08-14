@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'ui_form.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.3.0
+## Created by: Qt User Interface Compiler version 6.6.3
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -16,17 +16,18 @@ from PySide6.QtGui import (QAction, QBrush, QColor, QConicalGradient,
     QIcon, QImage, QKeySequence, QLinearGradient,
     QPainter, QPalette, QPixmap, QRadialGradient,
     QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox, QLabel,
-    QLineEdit, QListWidget, QListWidgetItem, QMainWindow,
-    QMenu, QMenuBar, QPushButton, QSizePolicy,
-    QTabWidget, QTextEdit, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFrame,
+    QGroupBox, QLabel, QLineEdit, QListWidget,
+    QListWidgetItem, QMainWindow, QMenu, QMenuBar,
+    QPushButton, QSizePolicy, QTabWidget, QTextEdit,
+    QWidget)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         if not MainWindow.objectName():
             MainWindow.setObjectName(u"MainWindow")
-        MainWindow.resize(800, 600)
-        MainWindow.setMinimumSize(QSize(800, 600))
+        MainWindow.resize(1200, 600)
+        MainWindow.setMinimumSize(QSize(1200, 600))
         MainWindow.setBaseSize(QSize(800, 600))
         self.actionOpen = QAction(MainWindow)
         self.actionOpen.setObjectName(u"actionOpen")
@@ -48,7 +49,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName(u"centralwidget")
         self.label_2 = QLabel(self.centralwidget)
         self.label_2.setObjectName(u"label_2")
-        self.label_2.setGeometry(QRect(20, 6, 251, 31))
+        self.label_2.setGeometry(QRect(20, 6, 191, 31))
         font = QFont()
         font.setPointSize(16)
         self.label_2.setFont(font)
@@ -56,17 +57,17 @@ class Ui_MainWindow(object):
         self.listWidget = QListWidget(self.centralwidget)
         self.listWidget.setObjectName(u"listWidget")
         self.listWidget.setEnabled(False)
-        self.listWidget.setGeometry(QRect(15, 41, 261, 491))
+        self.listWidget.setGeometry(QRect(15, 41, 201, 491))
         self.addButton = QPushButton(self.centralwidget)
         self.addButton.setObjectName(u"addButton")
-        self.addButton.setGeometry(QRect(14, 540, 121, 24))
+        self.addButton.setGeometry(QRect(14, 540, 61, 24))
         self.delButton = QPushButton(self.centralwidget)
         self.delButton.setObjectName(u"delButton")
-        self.delButton.setGeometry(QRect(150, 540, 121, 24))
+        self.delButton.setGeometry(QRect(80, 540, 61, 24))
         self.tabWidget = QTabWidget(self.centralwidget)
         self.tabWidget.setObjectName(u"tabWidget")
         self.tabWidget.setEnabled(True)
-        self.tabWidget.setGeometry(QRect(286, 9, 511, 561))
+        self.tabWidget.setGeometry(QRect(231, 9, 501, 561))
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
         self.groupBox = QGroupBox(self.tab)
@@ -392,23 +393,35 @@ class Ui_MainWindow(object):
         self.textEdit.setObjectName(u"textEdit")
         self.textEdit.setGeometry(QRect(10, 60, 481, 461))
         self.tabWidget.addTab(self.tab_2, "")
-        self.tab_3 = QWidget()
-        self.tab_3.setObjectName(u"tab_3")
-        self.label = QLabel(self.tab_3)
+        self.frame = QFrame(self.centralwidget)
+        self.frame.setObjectName(u"frame")
+        self.frame.setGeometry(QRect(740, 39, 450, 360))
+        self.frame.setFrameShape(QFrame.Box)
+        self.frame.setFrameShadow(QFrame.Plain)
+        self.label = QLabel(self.centralwidget)
         self.label.setObjectName(u"label")
-        self.label.setGeometry(QRect(18, 25, 471, 491))
+        self.label.setGeometry(QRect(750, 410, 431, 151))
         self.label.setTextFormat(Qt.AutoText)
         self.label.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignTop)
-        self.tabWidget.addTab(self.tab_3, "")
+        self.showButton = QPushButton(self.centralwidget)
+        self.showButton.setObjectName(u"showButton")
+        self.showButton.setGeometry(QRect(150, 540, 61, 24))
+        self.hideUnimportantBox = QCheckBox(self.centralwidget)
+        self.hideUnimportantBox.setObjectName(u"hideUnimportantBox")
+        self.hideUnimportantBox.setGeometry(QRect(745, 10, 181, 21))
         MainWindow.setCentralWidget(self.centralwidget)
         self.tabWidget.raise_()
         self.label_2.raise_()
         self.listWidget.raise_()
         self.addButton.raise_()
         self.delButton.raise_()
+        self.frame.raise_()
+        self.label.raise_()
+        self.showButton.raise_()
+        self.hideUnimportantBox.raise_()
         self.menuBar = QMenuBar(MainWindow)
         self.menuBar.setObjectName(u"menuBar")
-        self.menuBar.setGeometry(QRect(0, 0, 800, 22))
+        self.menuBar.setGeometry(QRect(0, 0, 1200, 22))
         self.menuFile = QMenu(self.menuBar)
         self.menuFile.setObjectName(u"menuFile")
         MainWindow.setMenuBar(self.menuBar)
@@ -447,8 +460,8 @@ class Ui_MainWindow(object):
         self.actionRails.setText(QCoreApplication.translate("MainWindow", u"Rails", None))
         self.actionGrid.setText(QCoreApplication.translate("MainWindow", u"&Grid", None))
         self.label_2.setText(QCoreApplication.translate("MainWindow", u"Actors", None))
-        self.addButton.setText(QCoreApplication.translate("MainWindow", u"Add Actor", None))
-        self.delButton.setText(QCoreApplication.translate("MainWindow", u"Delete Actor", None))
+        self.addButton.setText(QCoreApplication.translate("MainWindow", u"Duplicate", None))
+        self.delButton.setText(QCoreApplication.translate("MainWindow", u"Delete", None))
         self.groupBox.setTitle("")
         self.label_4.setText(QCoreApplication.translate("MainWindow", u"Type", None))
         self.label_6.setText(QCoreApplication.translate("MainWindow", u"Position", None))
@@ -508,25 +521,17 @@ class Ui_MainWindow(object):
         self.comboBox_7.setItemText(1, QCoreApplication.translate("MainWindow", u"+Enemies Tile:  True", None))
 
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), QCoreApplication.translate("MainWindow", u"Link Data (Saving not supported)", None))
-        self.label.setText(QCoreApplication.translate("MainWindow", u"1 tile position wise = 1.5 \n"
+        self.label.setText(QCoreApplication.translate("MainWindow", u"Positions:\n"
+"    X = left -> right \n"
+"    Y = down -> up (gravity)\n"
+"    Z = forward -> backwards\n"
 "\n"
-" X position = left -> right \n"
-"\n"
-" Y position = down -> up (gravity) \n"
-"\n"
-" Z position = forward -> backwards\n"
-"\n"
-" When focused on a position, arrow keys will move it in whatever direction you pressed\n"
+" When focused on a position, arrow keys will move it by 1 tile (a change of 1.5)\n"
 "\n"
 " When focused on a rotation, the Y rotation is what you will usually want to edit\n"
-" It will make it face in the direction of the arrow key\n"
-"\n"
-"\n"
-"\n"
-" I am working on a proper level viewer & editor \n"
-" It will open the flood gates to romhacks \n"
-" Until then, please be patient :)", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), QCoreApplication.translate("MainWindow", u"Useful Info", None))
+" It will make it face in the direction of the arrow key", None))
+        self.showButton.setText(QCoreApplication.translate("MainWindow", u"Hide", None))
+        self.hideUnimportantBox.setText(QCoreApplication.translate("MainWindow", u"Hide Objects Without Models", None))
         self.menuFile.setTitle(QCoreApplication.translate("MainWindow", u"&File", None))
     # retranslateUi
 

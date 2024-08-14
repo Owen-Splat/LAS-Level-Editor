@@ -51,6 +51,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.deleted = False
         self.manual_editing = False
         self.keys = []
+        self.view_actors = []
+        self.hideNoModelObjects = False
 
         self.ui.actionOpen.triggered.connect(self.fileOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
@@ -60,6 +62,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.dataType.currentIndexChanged.connect(self.updateActorType)
         self.ui.addButton.clicked.connect(self.copyActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
+        self.ui.showButton.clicked.connect(self.toggleActor)
+        self.ui.hideUnimportantBox.clicked.connect(self.toggleNoModelObjects)
 
         for line in self.findChildren(QtWidgets.QLineEdit):
             if line.objectName().startswith('dataPos'):
@@ -67,7 +71,17 @@ class MainWindow(QtWidgets.QMainWindow):
             elif line.objectName().startswith('dataRot'):
                 line.__class__ = RotLineEdit
 
-        self.setFixedSize(800, 600)
+        # draw tiles
+        for i in range(10):
+            for b in range(8):
+                posX = self.ui.frame.x() + (45 * i)
+                posY = self.ui.frame.y() + 22 + (45 * b)
+                tile = QtWidgets.QFrame(self)
+                tile.setGeometry(posX, posY, 45, 45)
+                tile.setFrameShape(QtWidgets.QFrame.Box)
+                tile.setFrameShadow(QtWidgets.QFrame.Raised)
+
+        self.setFixedSize(self.size())
         self.setWindowTitle('LAS Level Editor')
         self.show()
 
@@ -91,7 +105,6 @@ class MainWindow(QtWidgets.QMainWindow):
         except (FileNotFoundError, ValueError) as e:
             self.showError(e.args[0])
         else:
-            self.file_loaded = True
             self.setWindowTitle(os.path.basename(path))
             self.ui.listWidget.setEnabled(True)
             self.ui.listWidget.clear()
@@ -100,6 +113,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.keys.append(act.key)
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
             self.ui.listWidget.setCurrentRow(0)
+            self.topleft = [self.room_data.grid.info.x_coord , self.room_data.grid.info.z_coord]
+            self.file_loaded = True
+            self.drawRoom()
 
 
     def fileSave(self):
@@ -164,6 +180,9 @@ class MainWindow(QtWidgets.QMainWindow):
             c.setEnabled(False)
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
             field.setText('')
+        for act in self.view_actors:
+            act.deleteLater()
+        self.view_actors = []
         self.setWindowTitle('Level Editor')
 
 
@@ -225,6 +244,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
                 self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
                 self.displayEntryInfo()
+                self.toggleShowButton()
         
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
             field.home(False)
@@ -330,6 +350,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
                 self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
                 self.ui.ID_lineEdit.setText(str(act.key))
+                self.drawRoom()
             except ValueError as e:
                 self.showError(e.args[0])
             except IndexError:
@@ -383,10 +404,34 @@ class MainWindow(QtWidgets.QMainWindow):
         del self.room_data.actors[self.current_actor]
         self.deleted = True
         self.ui.listWidget.takeItem(self.current_actor)
+        self.drawRoom()
         # for i in range(self.ui.listWidget.count()):
         #     item = self.ui.listWidget.item(i)
         #     act_name = item.text().split('(')
         #     item.setText(f'{act_name[0]}({i})')
+
+
+    def toggleActor(self):
+        if self.room_data == None:
+            return
+        act = self.room_data.actors[self.current_actor]
+        act.visible = not act.visible
+        self.toggleShowButton()
+
+
+    def toggleShowButton(self):
+        if self.current_actor == -1:
+            return
+        if self.room_data.actors[self.current_actor].visible:
+            self.ui.showButton.setText("Hide")
+        else:
+            self.ui.showButton.setText("Show")
+        self.drawRoom()
+
+
+    def toggleNoModelObjects(self):
+        self.hideNoModelObjects = self.ui.hideUnimportantBox.isChecked()
+        self.drawRoom(hide_changed=True)
 
 
     def updateActorType(self): # executed when the type field is edited and updates both the actor and the list
@@ -532,6 +577,40 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fileOpen(link)
 
 
+    def drawRoom(self, hide_changed=False):
+        """Draws basic sprites to represent actor positions"""
+
+        self.saveActor(self.current_actor)
+
+        for act in self.view_actors:
+            act.deleteLater()
+        self.view_actors = []
+
+        if self.room_data == None:
+            return
+
+        for i, act in enumerate(self.room_data.actors):
+            posX = round(self.ui.frame.x() - 22 + ((act.posX - self.topleft[0]) * 30))
+            posY = round(self.ui.frame.y() + ((act.posZ - self.topleft[1]) * 30))
+            vAct = QtWidgets.QFrame(self)
+            vAct.setFrameShape(QtWidgets.QFrame.Box)
+            vAct.setFrameShadow(QtWidgets.QFrame.Plain)
+            color = "green" if i == self.current_actor else "red"
+            vAct.setStyleSheet(f"""background-color: {color};""")
+            self.view_actors.append(vAct)
+            vAct.setGeometry(posX, posY, 45, 45)
+            if hide_changed:
+                name = self.ui.listWidget.item(i).text()
+                if name.startswith(("Area", "Map", "Tag")):
+                    act.visible = not self.hideNoModelObjects
+                elif name == "ObjDungeonRoof":
+                    act.visible = not self.hideNoModelObjects
+            if act.visible:
+                vAct.show()
+        
+        if self.view_actors and self.room_data.actors[self.current_actor].visible:
+            self.view_actors[self.current_actor].raise_()
+
 
 class PosLineEdit(QtWidgets.QLineEdit):
     directions = {
@@ -543,6 +622,7 @@ class PosLineEdit(QtWidgets.QLineEdit):
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
         self.moveTile(event.key())
+        self.window().drawRoom()
 
     def moveTile(self, key):
         try:
@@ -566,6 +646,7 @@ class RotLineEdit(QtWidgets.QLineEdit):
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
         self.rotateTile(event.key())
+        self.window().drawRoom()
 
     def rotateTile(self, key):
         if key == QtCore.Qt.Key_Down:
