@@ -58,7 +58,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionClose.triggered.connect(self.fileClose)
         self.ui.listWidget.currentItemChanged.connect(self.displayActorInfo)
         self.ui.dataType.currentIndexChanged.connect(self.updateActorType)
-        self.ui.addButton.clicked.connect(self.addActor)
+        self.ui.addButton.clicked.connect(self.copyActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
 
         for line in self.findChildren(QtWidgets.QLineEdit):
@@ -311,15 +311,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
 
 
-    def addActor(self):
+    def copyActor(self):
+        """Makes a copy of the currently selected actor. The new actor is then given a unique ID"""
+
         if self.file_loaded:
             try:
+                self.saveActor(self.current_actor)
                 act = copy.deepcopy(self.room_data.actors[self.current_actor])
                 while act.key in self.keys:
                     act.key = random.getrandbits(64)
                 self.keys.append(act.key)
                 name_str = str(act.name, 'utf-8').split('-')[0]
                 name_hex = hex(act.key).split('0x')[1].upper()
+                while len(name_hex) != 16:
+                    name_hex = "0" + name_hex
                 act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
                 self.room_data.actors.append(act)
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
@@ -378,10 +383,10 @@ class MainWindow(QtWidgets.QMainWindow):
         del self.room_data.actors[self.current_actor]
         self.deleted = True
         self.ui.listWidget.takeItem(self.current_actor)
-        for i in range(self.ui.listWidget.count()):
-            item = self.ui.listWidget.item(i)
-            act_name = item.text().split('(')
-            item.setText(f'{act_name[0]}({i})')
+        # for i in range(self.ui.listWidget.count()):
+        #     item = self.ui.listWidget.item(i)
+        #     act_name = item.text().split('(')
+        #     item.setText(f'{act_name[0]}({i})')
 
 
     def updateActorType(self): # executed when the type field is edited and updates both the actor and the list
