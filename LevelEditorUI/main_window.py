@@ -22,7 +22,7 @@ ACTOR_IDS = list(ACTORS.values())
 ACTOR_NAMES = list(ACTORS.keys())
 REQUIRED_ACTORS = [0x185] # MapStatic
 
-icons_folder = 'LevelEditorUI/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUI/Icons'
+icons_folder = 'Icons'
 ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
 ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
 ROOM_ICONS_PATH = os.path.join(root_path, icons_folder, 'Rooms')
