@@ -608,6 +608,7 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.ui.roomFrame.clear()
 
+        # now draw the actor sprites
         for i, act in enumerate(self.room_data.actors):
             posX = self.ui.roomFrame.x() + round(((act.posX - self.topleft[0] - 0.75) * 30))
             posY = self.ui.roomFrame.y() + round((act.posZ - self.topleft[1]) * 30)
@@ -625,11 +626,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "Null.png"))
                 act.visible = not self.hideEmptySprites
 
+            trans = QtGui.QTransform()
+            trans.rotate(act.rotY * -1)
+            pix = pix.transformed(trans)
             vAct.setPixmap(pix)
+            vAct.setScaledContents(True)
+
             self.view_actors.append(vAct)
             if act.visible:
                 vAct.show()
-        
+
+        # if the currently selected actor is visible, raise it to the top layer
         if self.view_actors and self.room_data.actors[self.current_actor].visible:
             self.view_actors[self.current_actor].raise_()
 

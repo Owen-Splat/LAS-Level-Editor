@@ -1,6 +1,6 @@
 __pycache__
 .qt_for_python
 /build
-/LevelEditorUI/Icons/Rooms
+/Icons
 run.bat
 test.py
