@@ -4,7 +4,7 @@ from cx_Freeze import setup, Executable
 build_exe_options = {"packages": ["os"], 
                     "excludes": ["tkinter", "unittest", "sqlite3", "numpy", "matplotlib", "zstandard"],
                     "zip_include_packages": ["encodings", "PySide6"],
-                    "include_files": ["LevelEditorCore/Data"],
+                    "include_files": [],
                     "optimize": 2}
 
 base = None

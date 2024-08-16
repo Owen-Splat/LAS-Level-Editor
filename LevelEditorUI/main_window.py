@@ -1,4 +1,4 @@
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 from LevelEditorUI.UI.ui_form import Ui_MainWindow
 import LevelEditorCore.Tools.leb as leb
 import copy, os, sys, yaml, random
@@ -10,7 +10,7 @@ else:
     RUNNING_FROM_SOURCE = True
     root_path = os.path.dirname(os.path.dirname(__file__))
 
-data_folder = 'LevelEditorCore/Data' if RUNNING_FROM_SOURCE else 'Data'
+data_folder = 'LevelEditorCore/Data' if RUNNING_FROM_SOURCE else 'lib/LevelEditorCore/Data'
 DATA_PATH = os.path.join(root_path, data_folder)
 with open(os.path.join(DATA_PATH, 'actors.yml'), 'r') as f:
     actor_list = yaml.safe_load(f)
@@ -18,11 +18,19 @@ with open(os.path.join(DATA_PATH, 'actors.yml'), 'r') as f:
 ACTORS = {}
 for i, actor in enumerate(actor_list):
     ACTORS[actor['name']] = hex(i)
-
 ACTOR_IDS = list(ACTORS.values())
 ACTOR_NAMES = list(ACTORS.keys())
-REQUIRED_ACTORS = [0x185]
-# MapStatic
+REQUIRED_ACTORS = [0x185] # MapStatic
+
+icons_folder = 'LevelEditorUI/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUI/Icons'
+ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
+ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
+ROOM_ICONS_PATH = os.path.join(root_path, icons_folder, 'Rooms')
+ROOM_ICONS = [f.split('.')[0] for f in os.listdir(ROOM_ICONS_PATH) if f.endswith('.png')]
+masks = [f for f in ROOM_ICONS if f.endswith('Mask')]
+for mask in masks:
+    ROOM_ICONS.remove(mask)
+    os.remove(os.path.join(ROOM_ICONS_PATH, f"{mask}.png"))
 
 
 
@@ -52,7 +60,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.manual_editing = False
         self.keys = []
         self.view_actors = []
-        self.hideNoModelObjects = False
+        self.hideEmptySprites = True
+
+        self.ui.hideUnimportantCheck.setChecked(True)
+        self.ui.gridWidget.hide()
 
         self.ui.actionOpen.triggered.connect(self.fileOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
@@ -63,23 +74,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.addButton.clicked.connect(self.copyActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
         self.ui.showButton.clicked.connect(self.toggleActor)
-        self.ui.hideUnimportantBox.clicked.connect(self.toggleNoModelObjects)
+        self.ui.hideUnimportantCheck.clicked.connect(self.toggleNoModelObjects)
+        self.ui.gridCheck.clicked.connect(self.toggleGrid)
 
         for line in self.findChildren(QtWidgets.QLineEdit):
             if line.objectName().startswith('dataPos'):
                 line.__class__ = PosLineEdit
             elif line.objectName().startswith('dataRot'):
                 line.__class__ = RotLineEdit
-
-        # draw tiles
-        for i in range(10):
-            for b in range(8):
-                posX = self.ui.frame.x() + (45 * i)
-                posY = self.ui.frame.y() + 22 + (45 * b)
-                tile = QtWidgets.QFrame(self)
-                tile.setGeometry(posX, posY, 45, 45)
-                tile.setFrameShape(QtWidgets.QFrame.Box)
-                tile.setFrameShadow(QtWidgets.QFrame.Raised)
 
         self.setFixedSize(self.size())
         self.setWindowTitle('LAS Level Editor')
@@ -106,15 +108,15 @@ class MainWindow(QtWidgets.QMainWindow):
             self.showError(e.args[0])
         else:
             self.setWindowTitle(os.path.basename(path))
+            self.keys.clear()
+            self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
+            self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
             self.ui.listWidget.clear()
-            self.keys.clear()
             for act in self.room_data.actors:
                 self.keys.append(act.key)
                 self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
             self.ui.listWidget.setCurrentRow(0)
-            self.topleft = [self.room_data.grid.info.x_coord , self.room_data.grid.info.z_coord]
-            self.file_loaded = True
             self.drawRoom()
 
 
@@ -430,8 +432,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def toggleNoModelObjects(self):
-        self.hideNoModelObjects = self.ui.hideUnimportantBox.isChecked()
-        self.drawRoom(hide_changed=True)
+        self.hideEmptySprites = self.ui.hideUnimportantCheck.isChecked()
+        self.drawRoom()
+
+
+    def toggleGrid(self):
+        if self.ui.gridCheck.isChecked():
+            self.ui.gridWidget.show()
+        else:
+            self.ui.gridWidget.hide()
 
 
     def updateActorType(self): # executed when the type field is edited and updates both the actor and the list
@@ -456,6 +465,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.showError('Levels require at least 1 actor of this type')
                 self.ui.dataType.setCurrentIndex(
                     self.ui.dataType.findText(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))], QtCore.Qt.MatchExactly))
+
+        self.drawRoom()
 
 
     def enableEditor(self):
@@ -577,7 +588,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fileOpen(link)
 
 
-    def drawRoom(self, hide_changed=False):
+    def drawRoom(self):
         """Draws basic sprites to represent actor positions"""
 
         self.saveActor(self.current_actor)
@@ -589,22 +600,33 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.room_data == None:
             return
 
+        # draw room sprite before the actor sprites
+        room_name = os.path.basename(self.file).split('.')[0]
+        if room_name in ROOM_ICONS:
+            pix = QtGui.QPixmap(os.path.join(ROOM_ICONS_PATH, f"{room_name}.png"))
+            self.ui.roomFrame.setPixmap(pix)
+        else:
+            self.ui.roomFrame.clear()
+
         for i, act in enumerate(self.room_data.actors):
-            posX = round(self.ui.frame.x() - 22 + ((act.posX - self.topleft[0]) * 30))
-            posY = round(self.ui.frame.y() + ((act.posZ - self.topleft[1]) * 30))
-            vAct = QtWidgets.QFrame(self)
-            vAct.setFrameShape(QtWidgets.QFrame.Box)
-            vAct.setFrameShadow(QtWidgets.QFrame.Plain)
-            color = "green" if i == self.current_actor else "red"
-            vAct.setStyleSheet(f"""background-color: {color};""")
-            self.view_actors.append(vAct)
+            posX = self.ui.roomFrame.x() + round(((act.posX - self.topleft[0] - 0.75) * 30))
+            posY = self.ui.roomFrame.y() + round((act.posZ - self.topleft[1]) * 30)
+
+            if i == self.current_actor:
+                vAct = SelectedLabel(self)
+            else:
+                vAct = QtWidgets.QLabel(self)
             vAct.setGeometry(posX, posY, 45, 45)
-            if hide_changed:
-                name = self.ui.listWidget.item(i).text()
-                if name.startswith(("Area", "Map", "Tag")):
-                    act.visible = not self.hideNoModelObjects
-                elif name == "ObjDungeonRoof":
-                    act.visible = not self.hideNoModelObjects
+
+            name = self.ui.listWidget.item(i).text()
+            if name in ACTOR_ICONS:
+                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, f"{name}.png"))
+            else:
+                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "Null.png"))
+                act.visible = not self.hideEmptySprites
+
+            vAct.setPixmap(pix)
+            self.view_actors.append(vAct)
             if act.visible:
                 vAct.show()
         
@@ -641,7 +663,6 @@ class PosLineEdit(QtWidgets.QLineEdit):
         self.setText(str(pos + amount))
 
 
-
 class RotLineEdit(QtWidgets.QLineEdit):
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
@@ -661,3 +682,26 @@ class RotLineEdit(QtWidgets.QLineEdit):
             return
         
         self.setText(str(rot))
+
+
+class SelectedLabel(QtWidgets.QLabel):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.setParent(parent)
+        self.grow = True
+        effect = QtWidgets.QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(effect)
+        self.anim = QtCore.QPropertyAnimation(effect, b"opacity")
+        self.anim.finished.connect(self.reverseAnimation)
+        self.anim.setDuration(1000)
+        self.reverseAnimation()
+    
+    def reverseAnimation(self):
+        self.grow = not self.grow
+        if self.grow:
+            self.anim.setStartValue(0.5)
+            self.anim.setEndValue(1.0)
+        else:
+            self.anim.setStartValue(1.0)
+            self.anim.setEndValue(0.5)
+        self.anim.start()

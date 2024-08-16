@@ -1354,22 +1354,6 @@
      </widget>
     </widget>
    </widget>
-   <widget class="QFrame" name="frame">
-    <property name="geometry">
-     <rect>
-      <x>740</x>
-      <y>39</y>
-      <width>450</width>
-      <height>360</height>
-     </rect>
-    </property>
-    <property name="frameShape">
-     <enum>QFrame::Box</enum>
-    </property>
-    <property name="frameShadow">
-     <enum>QFrame::Plain</enum>
-    </property>
-   </widget>
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
@@ -1410,28 +1394,287 @@
      <string>Hide</string>
     </property>
    </widget>
-   <widget class="QCheckBox" name="hideUnimportantBox">
+   <widget class="QCheckBox" name="hideUnimportantCheck">
     <property name="geometry">
      <rect>
-      <x>745</x>
+      <x>750</x>
       <y>10</y>
       <width>181</width>
       <height>21</height>
      </rect>
     </property>
     <property name="text">
-     <string>Hide Objects Without Models</string>
+     <string>Hide Objects Without Sprites</string>
     </property>
+   </widget>
+   <widget class="QLabel" name="roomFrame">
+    <property name="geometry">
+     <rect>
+      <x>740</x>
+      <y>40</y>
+      <width>450</width>
+      <height>360</height>
+     </rect>
+    </property>
+    <property name="styleSheet">
+     <string notr="true">background-color: rgb(255, 255, 255);
+border: 1px solid black;</string>
+    </property>
+    <property name="text">
+     <string/>
+    </property>
+    <property name="textFormat">
+     <enum>Qt::AutoText</enum>
+    </property>
+    <property name="scaledContents">
+     <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QCheckBox" name="gridCheck">
+    <property name="geometry">
+     <rect>
+      <x>1100</x>
+      <y>10</y>
+      <width>81</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Show Grid</string>
+    </property>
+   </widget>
+   <widget class="QWidget" name="gridWidget" native="true">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>740</x>
+      <y>40</y>
+      <width>450</width>
+      <height>360</height>
+     </rect>
+    </property>
+    <widget class="Line" name="line">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>45</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_2">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>90</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_3">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>135</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_4">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>180</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_5">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>225</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_6">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>270</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_7">
+     <property name="geometry">
+      <rect>
+       <x>1</x>
+       <y>315</y>
+       <width>449</width>
+       <height>3</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_8">
+     <property name="geometry">
+      <rect>
+       <x>45</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_9">
+     <property name="geometry">
+      <rect>
+       <x>90</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_10">
+     <property name="geometry">
+      <rect>
+       <x>135</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_11">
+     <property name="geometry">
+      <rect>
+       <x>180</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_12">
+     <property name="geometry">
+      <rect>
+       <x>225</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_13">
+     <property name="geometry">
+      <rect>
+       <x>270</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_14">
+     <property name="geometry">
+      <rect>
+       <x>315</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_15">
+     <property name="geometry">
+      <rect>
+       <x>360</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+    <widget class="Line" name="line_16">
+     <property name="geometry">
+      <rect>
+       <x>405</x>
+       <y>1</y>
+       <width>3</width>
+       <height>359</height>
+      </rect>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
    </widget>
    <zorder>tabWidget</zorder>
    <zorder>label_2</zorder>
    <zorder>listWidget</zorder>
    <zorder>addButton</zorder>
    <zorder>delButton</zorder>
-   <zorder>frame</zorder>
    <zorder>label</zorder>
    <zorder>showButton</zorder>
-   <zorder>hideUnimportantBox</zorder>
+   <zorder>hideUnimportantCheck</zorder>
+   <zorder>roomFrame</zorder>
+   <zorder>gridCheck</zorder>
+   <zorder>gridWidget</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
