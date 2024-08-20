@@ -35,12 +35,6 @@ for mask in masks:
 DEFAULT_ICON_PATH = 'LevelEditorUi/Icons/NoSprite.png' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons/NoSprite.png'
 
 
-class MyDumper(yaml.Dumper):
-    def increase_indent(self, flow=False, indentless=False):
-        return super(MyDumper, self).increase_indent(flow, False)
-
-
-
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super (MainWindow, self).__init__()
@@ -110,7 +104,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.showError(e.args[0])
         else:
             self.setWindowTitle(os.path.basename(path))
-            self.keys.clear()
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
@@ -354,18 +347,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.saveActor(self.current_actor)
                 act = copy.deepcopy(self.room_data.actors[self.current_actor])
                 while act.key in self.keys:
-                    act.key = random.getrandbits(64)
-                self.keys.append(act.key)
-                name_str = str(act.name, 'utf-8').split('-')[0]
-                name_hex = hex(act.key).split('0x')[1].upper()
-                while len(name_hex) != 16:
-                    name_hex = "0" + name_hex
-                act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
+                    act.key = random.getrandbits(64) # the list of keys is updated when calling drawRoom()
                 self.room_data.actors.append(act)
                 self.next_actor = self.ui.listWidget.count()
                 self.drawRoom()
-                # self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
-                # self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
             except ValueError as e:
                 self.showError(e.args[0])
             except IndexError:
@@ -420,11 +405,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.next_actor = self.current_actor - 1
         self.deleted = True
         self.drawRoom()
-        # self.ui.listWidget.takeItem(self.current_actor)
-        # for i in range(self.ui.listWidget.count()):
-        #     item = self.ui.listWidget.item(i)
-        #     act_name = item.text().split('(')
-        #     item.setText(f'{act_name[0]}({i})')
 
 
     def toggleActor(self):
@@ -469,11 +449,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if not self.room_data.actors[self.current_actor].type in REQUIRED_ACTORS:
             act.type = new_type
-            self.ui.listWidget.currentItem().setText(self.ui.dataType.currentText())
         else:
             if len([act for act in self.room_data.actors if act.type == self.room_data.actors[self.current_actor].type]) > 1:
                 act.type = new_type
-                self.ui.listWidget.currentItem().setText(self.ui.dataType.currentText())
             else:
                 self.showError('Levels require at least 1 actor of this type')
                 self.ui.dataType.setCurrentIndex(
@@ -566,7 +544,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.listWidget.clear()
         for act in self.room_data.actors:
             self.keys.append(act.key)
-            self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
+            self.ui.listWidget.addItem(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))])
         if self.current_actor >= 0:
             self.ui.listWidget.setCurrentRow(self.next_actor)
         else:
@@ -631,6 +609,11 @@ class MainWindow(QtWidgets.QMainWindow):
             current_vAct.raise_()
 
         self.drawing = False
+
+
+class MyDumper(yaml.Dumper):
+    def increase_indent(self, flow=False, indentless=False):
+        return super(MyDumper, self).increase_indent(flow, False)
 
 
 class PosLineEdit(QtWidgets.QLineEdit):

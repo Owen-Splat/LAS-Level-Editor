@@ -162,9 +162,6 @@ class Actor:
 		self.key = readBytes(data, 0x0, 8)
 		self.name = readString(names, readBytes(data, 0x8, 4))
 
-		if self.key != int(self.name[-16:], 16):
-			raise ValueError(f'Actor key does not match for actor {hex(self.key)}')
-
 		self.type = readBytes(data, 0xC, 2)
 		self.xE = readBytes(data, 0xE, 2)
 		self.roomID = readBytes(data, 0x10, 4)
@@ -203,9 +200,15 @@ class Actor:
 
 	def __repr__(self):
 		return f'Actor: {self.name}'
-		
+
 	def pack(self, name_offset):
 		packed = b''
+
+		# only the hex part of the name matters, so we can change the first half to a basic "Actor" to trim down file size a little
+		key_hex = hex(self.key).split('0x')[1].upper()
+		while len(key_hex) != 16:
+			key_hex = "0" + key_hex
+		self.name = bytes(f"Actor-{key_hex}", 'utf-8')
 		name_repr = self.name + b'\x00'
 
 		packed += self.key.to_bytes(8, 'little')
