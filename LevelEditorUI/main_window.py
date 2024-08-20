@@ -45,10 +45,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file = ''
         self.file_loaded = False
         self.save_location = ''
-
         self.data_viewed = False
         self.room_data = None
         self.current_actor = -1
+        self.next_actor = -1
         self.current_section = -1
         self.current_entry = -1
         self.deleted = False
@@ -164,16 +164,21 @@ class MainWindow(QtWidgets.QMainWindow):
     def fileClose(self):
         self.file = ''
         self.file_loaded = False
-        self.manual_editing = False
+        self.save_location = ''
+        self.data_viewed = False
+        self.room_data = None
         self.current_actor = -1
         self.next_actor = -1
         self.current_section = -1
         self.current_entry = -1
-        self.room_data = None
+        self.deleted = False
+        self.manual_editing = False
+        self.drawing = False
+        self.keys = []
+        self.actor_sprites = []
         self.ui.listWidget.clear()
         self.ui.listWidget.setEnabled(False)
         self.ui.dataType.clear()
-        self.data_viewed = False
         for c in self.ui.groupBox.children():
             c.setEnabled(False)
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
