@@ -1407,29 +1407,6 @@
      <string>Hide Objects Without Sprites</string>
     </property>
    </widget>
-   <widget class="QLabel" name="roomFrame">
-    <property name="geometry">
-     <rect>
-      <x>740</x>
-      <y>40</y>
-      <width>450</width>
-      <height>360</height>
-     </rect>
-    </property>
-    <property name="styleSheet">
-     <string notr="true">background-color: rgb(255, 255, 255);
-border: 1px solid black;</string>
-    </property>
-    <property name="text">
-     <string/>
-    </property>
-    <property name="textFormat">
-     <enum>Qt::AutoText</enum>
-    </property>
-    <property name="scaledContents">
-     <bool>true</bool>
-    </property>
-   </widget>
    <widget class="QCheckBox" name="gridCheck">
     <property name="geometry">
      <rect>
@@ -1664,6 +1641,22 @@ border: 1px solid black;</string>
      </property>
     </widget>
    </widget>
+   <widget class="QFrame" name="roomFrame">
+    <property name="geometry">
+     <rect>
+      <x>740</x>
+      <y>40</y>
+      <width>450</width>
+      <height>360</height>
+     </rect>
+    </property>
+    <property name="frameShape">
+     <enum>QFrame::Box</enum>
+    </property>
+    <property name="frameShadow">
+     <enum>QFrame::Plain</enum>
+    </property>
+   </widget>
    <zorder>tabWidget</zorder>
    <zorder>label_2</zorder>
    <zorder>listWidget</zorder>
@@ -1672,9 +1665,9 @@ border: 1px solid black;</string>
    <zorder>label</zorder>
    <zorder>showButton</zorder>
    <zorder>hideUnimportantCheck</zorder>
-   <zorder>roomFrame</zorder>
    <zorder>gridCheck</zorder>
    <zorder>gridWidget</zorder>
+   <zorder>roomFrame</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">

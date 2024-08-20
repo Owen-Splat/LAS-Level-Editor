@@ -25,13 +25,6 @@ REQUIRED_ACTORS = [0x185] # MapStatic
 icons_folder = 'Icons'
 ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
 ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
-ROOM_ICONS_PATH = os.path.join(root_path, icons_folder, 'Rooms')
-ROOM_ICONS = [f.split('.')[0] for f in os.listdir(ROOM_ICONS_PATH) if f.endswith('.png')]
-masks = [f for f in ROOM_ICONS if f.endswith('Mask')]
-for mask in masks:
-    ROOM_ICONS.remove(mask)
-    os.remove(os.path.join(ROOM_ICONS_PATH, f"{mask}.png"))
-
 DEFAULT_ICON_PATH = 'LevelEditorUi/Icons/NoSprite.png' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons/NoSprite.png'
 
 
@@ -79,6 +72,15 @@ class MainWindow(QtWidgets.QMainWindow):
             elif line.objectName().startswith('dataRot'):
                 line.__class__ = RotLineEdit
 
+        self.tiles = []
+        for i in range(8):
+            for b in range(10):
+                tile = QtWidgets.QFrame(self.ui.roomFrame)
+                tile.setGeometry((45 * b), (45 * i), 45, 45)
+                tile.setStyleSheet("")
+                self.tiles.append(tile)
+        self.ui.gridWidget.raise_() # raise the grid above the painted tiles
+
         self.setFixedSize(self.size())
         self.setWindowTitle('LAS Level Editor')
         self.show()
@@ -105,14 +107,30 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.setWindowTitle(os.path.basename(path))
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
+
+            # draw out the room based on tile data
+            for i, tile in enumerate(self.room_data.grid.tilesdata):
+                contains_collision: bool = tile.flags1['containscollision']
+                deep_water: bool = tile.flags1['deepwaterlava']
+                is_water: bool = tile.flags3['iswaterlava']
+                v_tile: QtWidgets.QFrame = self.tiles[i]
+                t_color = ""
+                if contains_collision:
+                    t_color = "#775c2e"
+                else:
+                    if deep_water:
+                        t_color = "#6b7d63"
+                        if not is_water:
+                            t_color = "black"
+                    elif is_water:
+                        t_color = "#8a9b75"
+                    else:
+                        t_color = "#e5cc8f"
+                v_tile.setStyleSheet(f"background-color: {t_color};")
+
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
             self.drawRoom(toggle_hide=True)
-            # self.ui.listWidget.clear()
-            # for act in self.room_data.actors:
-            #     self.keys.append(act.key)
-            #     self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
-            # self.ui.listWidget.setCurrentRow(0)
 
 
     def fileSave(self):
@@ -175,7 +193,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.manual_editing = False
         self.drawing = False
         self.keys = []
-        self.actor_sprites = []
         self.ui.listWidget.clear()
         self.ui.listWidget.setEnabled(False)
         self.ui.dataType.clear()
@@ -186,6 +203,8 @@ class MainWindow(QtWidgets.QMainWindow):
         for act in self.actor_sprites:
             act.deleteLater()
         self.actor_sprites = []
+        for tile in self.tiles:
+            tile.setStyleSheet("")
         self.setWindowTitle('Level Editor')
 
 
@@ -558,25 +577,13 @@ class MainWindow(QtWidgets.QMainWindow):
         # display the info of the currently selected actor
         self.displayActorInfo()
 
-        # TODO: read the room grid data to draw out the room background sprite, with a QFrame as each tile
-        room_name = os.path.basename(self.file).split('.')[0]
-        if room_name in ROOM_ICONS:
-            pix = QtGui.QPixmap(os.path.join(ROOM_ICONS_PATH, f"{room_name}.png"))
-            self.ui.roomFrame.setPixmap(pix)
-        else:
-            self.ui.roomFrame.clear()
-
         # now draw the actor sprites
         current_vAct = None
         for i, act in enumerate(self.room_data.actors):
-            posX = self.ui.roomFrame.x() + round(((act.posX - self.topleft[0] - 0.75) * 30))
-            posY = self.ui.roomFrame.y() + round((act.posZ - self.topleft[1]) * 30)
-
-            # use custom QLabel if it's the currently selected actor, otherwise use a basic QLabel
             if i == self.current_actor:
-                vAct = SelectedLabel(self)
+                vAct = SelectedLabel(self.ui.roomFrame)
             else:
-                vAct = QtWidgets.QLabel(self)
+                vAct = QtWidgets.QLabel(self.ui.roomFrame)
 
             # define the sprite name and create a pixmap out of it
             name = self.ui.listWidget.item(i).text()
@@ -593,9 +600,13 @@ class MainWindow(QtWidgets.QMainWindow):
             # trans.rotate(act.rotY * -1)
             # pix = pix.transformed(trans)
 
-            # add sprite and define label geometry
+            # add sprite and scale it
             vAct.setPixmap(pix)
             vAct.setScaledContents(True)
+
+            # define geometry
+            posX = round(((act.posX - self.topleft[0]) * 30) - 22.5)
+            posY = round(((act.posZ - self.topleft[1]) * 30) - 22.5)
             vAct.setGeometry(posX, posY, 45, 45)
 
             # add sprite to a reference list so we can delete it before a redraw
@@ -696,7 +707,7 @@ class SelectedLabel(QtWidgets.QLabel):
         self.anim_1 = QtCore.QPropertyAnimation(effect, b"opacity")
         self.anim_1.finished.connect(self.startAnimation)
         self.anim_1.setDuration(750)
-        self.values = [0.5, 1.0]
+        self.values = [0.65, 1.0]
         self.startAnimation()
 
     def startAnimation(self):
