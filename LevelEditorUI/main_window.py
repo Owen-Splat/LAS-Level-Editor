@@ -32,6 +32,7 @@ for mask in masks:
     ROOM_ICONS.remove(mask)
     os.remove(os.path.join(ROOM_ICONS_PATH, f"{mask}.png"))
 
+DEFAULT_ICON_PATH = 'LevelEditorUi/Icons/NoSprite.png' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons/NoSprite.png'
 
 
 class MyDumper(yaml.Dumper):
@@ -58,8 +59,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.current_entry = -1
         self.deleted = False
         self.manual_editing = False
+        self.drawing = False
         self.keys = []
-        self.view_actors = []
+        self.actor_sprites = []
         self.hideEmptySprites = True
 
         self.ui.hideUnimportantCheck.setChecked(True)
@@ -69,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionSave.triggered.connect(self.fileSave)
         self.ui.actionSaveAs.triggered.connect(self.fileSaveAs)
         self.ui.actionClose.triggered.connect(self.fileClose)
-        self.ui.listWidget.currentItemChanged.connect(self.displayActorInfo)
+        self.ui.listWidget.currentRowChanged.connect(self.selectedActorChanged)
         self.ui.dataType.currentIndexChanged.connect(self.updateActorType)
         self.ui.addButton.clicked.connect(self.copyActor)
         self.ui.delButton.clicked.connect(self.deleteButton_Clicked)
@@ -112,12 +114,12 @@ class MainWindow(QtWidgets.QMainWindow):
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
-            self.ui.listWidget.clear()
-            for act in self.room_data.actors:
-                self.keys.append(act.key)
-                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
-            self.ui.listWidget.setCurrentRow(0)
-            self.drawRoom()
+            self.drawRoom(toggle_hide=True)
+            # self.ui.listWidget.clear()
+            # for act in self.room_data.actors:
+            #     self.keys.append(act.key)
+            #     self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
+            # self.ui.listWidget.setCurrentRow(0)
 
 
     def fileSave(self):
@@ -171,6 +173,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.file_loaded = False
         self.manual_editing = False
         self.current_actor = -1
+        self.next_actor = -1
         self.current_section = -1
         self.current_entry = -1
         self.room_data = None
@@ -182,26 +185,35 @@ class MainWindow(QtWidgets.QMainWindow):
             c.setEnabled(False)
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
             field.setText('')
-        for act in self.view_actors:
+        for act in self.actor_sprites:
             act.deleteLater()
-        self.view_actors = []
+        self.actor_sprites = []
         self.setWindowTitle('Level Editor')
+
+
+    def selectedActorChanged(self, current_row):
+        if not self.file_loaded or self.drawing or self.deleted:
+            return
+
+        if (current_row != -1) and (current_row != self.current_actor):
+            self.next_actor = current_row
+            self.drawRoom()
 
 
     def displayActorInfo(self):
         if not self.file_loaded:
             return
-        
+
         self.manual_editing = False
 
         if not self.data_viewed:
             self.enableEditor()
-        
+
         if not self.deleted:
             self.saveActor(self.current_actor)
         else:
             self.deleted = False
-        
+
         self.current_actor = self.ui.listWidget.currentRow() if self.room_data.actors else -1
 
         if self.current_actor != -1:
@@ -326,6 +338,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.saveEntryData()
             
             except ValueError as e:
+                print('error at saveActor', f"current actor: {self.current_actor}")
                 self.showError(e.args[0])
                 self.ui.listWidget.setCurrentRow(previous)
             
@@ -349,10 +362,10 @@ class MainWindow(QtWidgets.QMainWindow):
                     name_hex = "0" + name_hex
                 act.name = bytes(f'{name_str}-{name_hex}', 'utf-8')
                 self.room_data.actors.append(act)
-                self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
-                self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
-                self.ui.ID_lineEdit.setText(str(act.key))
+                self.next_actor = self.ui.listWidget.count()
                 self.drawRoom()
+                # self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
+                # self.ui.listWidget.setCurrentRow(self.ui.listWidget.count() - 1)
             except ValueError as e:
                 self.showError(e.args[0])
             except IndexError:
@@ -368,7 +381,6 @@ class MainWindow(QtWidgets.QMainWindow):
                     self.deleteActor()
                 else:
                     self.showError('Levels require at least 1 actor of this type')
-            self.displayActorInfo()
 
 
     def deleteActor(self):
@@ -387,7 +399,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     i += 1
                 except IndexError:
                     print('section 1:' + i)
-                        
+
             i = 0
             while i < len(act.relationships.section_3):
                 try:
@@ -401,12 +413,14 @@ class MainWindow(QtWidgets.QMainWindow):
                     i += 1
                 except IndexError:
                     print('section 3:' + i)
-        
+
         self.keys.remove(self.room_data.actors[self.current_actor].key)
         del self.room_data.actors[self.current_actor]
+        if self.current_actor == self.ui.listWidget.count() - 1:
+            self.next_actor = self.current_actor - 1
         self.deleted = True
-        self.ui.listWidget.takeItem(self.current_actor)
         self.drawRoom()
+        # self.ui.listWidget.takeItem(self.current_actor)
         # for i in range(self.ui.listWidget.count()):
         #     item = self.ui.listWidget.item(i)
         #     act_name = item.text().split('(')
@@ -428,12 +442,11 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.showButton.setText("Hide")
         else:
             self.ui.showButton.setText("Show")
-        self.drawRoom()
 
 
     def toggleNoModelObjects(self):
         self.hideEmptySprites = self.ui.hideUnimportantCheck.isChecked()
-        self.drawRoom()
+        self.drawRoom(toggle_hide=True)
 
 
     def toggleGrid(self):
@@ -444,16 +457,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def updateActorType(self): # executed when the type field is edited and updates both the actor and the list
-        
+
         if not self.manual_editing: # only change actor type when the user actually manually edits
             return
-        
+
         act = self.room_data.actors[self.current_actor]
         new_type = ACTOR_NAMES.index(self.ui.dataType.currentText())
 
         if new_type == act.type: # do not do anything if the type is not being changed
             return
-        
+
         if not self.room_data.actors[self.current_actor].type in REQUIRED_ACTORS:
             act.type = new_type
             self.ui.listWidget.currentItem().setText(self.ui.dataType.currentText())
@@ -483,68 +496,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.data_viewed = True
 
 
-    def capCurrentEntries(self):
-        return
-        # self.room_data.actors[self.current_actor].relationships.num_entries_1 = self.ui.dataNumEntries.value()
-        # self.ui.dataCurrentEntry.setMaximum(
-        #     (self.ui.dataNumEntries.value() - 1) if (self.ui.dataNumEntries.value() - 1) > 0 else -1)
-        if self.ui.dataNumEntries.value() > 0:
-            self.ui.dataCurrentEntry.setMinimum(0)
-            self.ui.dataEntryParameter.setEnabled(True)
-            self.ui.dataEntryParameter_2.setEnabled(True)
-            self.ui.dataEntryActor.setEnabled(True)
-        else:
-            self.ui.dataEntryParameter.setEnabled(False)
-            self.ui.dataEntryParameter_2.setEnabled(False)
-            self.ui.dataEntryActor.setEnabled(False)
-        
-        # self.room_data.actors[self.current_actor].relationships.num_entries_2 = self.ui.dataNumEntries_2.value()
-        # self.ui.dataCurrentEntry_2.setMaximum(
-        #     (self.ui.dataNumEntries_2.value() - 1) if (self.ui.dataNumEntries_2.value() - 1) > 0 else -1)
-        if self.ui.dataNumEntries_2.value() > 0:
-            self.ui.dataCurrentEntry_2.setMinimum(0)
-            self.ui.dataEntryParameter_3.setEnabled(True)
-            self.ui.dataEntryParameter_4.setEnabled(True)
-            self.ui.dataEntryRail.setEnabled(True)
-            self.ui.dataEntryPoint.setEnabled(True)
-        else:
-            self.ui.dataEntryParameter_3.setEnabled(False)
-            self.ui.dataEntryParameter_4.setEnabled(False)
-            self.ui.dataEntryRail.setEnabled(False)
-            self.ui.dataEntryPoint.setEnabled(False)
-        
-        # self.room_data.actors[self.current_actor].relationships.num_entries_3 = self.ui.dataNumEntries_3.value()
-        # self.ui.dataCurrentEntry_3.setMaximum(
-        #     (self.ui.dataNumEntries_3.value() - 1) if (self.ui.dataNumEntries_3.value() - 1) > 0 else -1)
-        if self.ui.dataNumEntries_3.value() > 0:
-            self.ui.dataCurrentEntry_3.setMinimum(0)
-            self.ui.dataEntryActor_2.setEnabled(True)
-        else:
-            self.ui.dataEntryActor_2.setEnabled(False)
-
-
-    # def updateSect1CurrentEntry(self):
-    #     if self.ui.dataEntryActor.value() < 0:
-    #         self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
-    #     else:
-    #         self.ui.dataCurrentEntry.setMaximum(99)
-
-
-    # def updateSect2CurrentEntry(self):
-    #     if self.ui.dataEntryActor.value() < 0:
-    #         self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
-    #     else:
-    #         self.ui.dataCurrentEntry.setMaximum(99)
-
-
-    # def updateSect3CurrentEntry(self):
-    #     if self.ui.dataEntryActor.value() < 0:
-    #         self.ui.dataCurrentEntry.setMaximum(self.ui.dataCurrentEntry.value())
-    #     else:
-    #         self.ui.dataCurrentEntry.setMaximum(99)
-
-
     def removeTrailingZeros(self, dec: str):
+        """Removes trailing zeros in float strings"""
+
         dec_list = [c for c in dec]
         dec_list.reverse()
         dec_list_2 = dec_list.copy()
@@ -567,6 +521,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def showError(self, error_message):
+        """Opens a new QMessageBox with error_message as the text"""
+
         message = QtWidgets.QMessageBox()
         message.setWindowTitle('LAS Level Editor')
         message.setText(error_message)
@@ -574,6 +530,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def dragEnterEvent(self, event):
+        """Allows dragging level files into this tool. Dropping the file is handled in dropEvent()"""
+
         if event.mimeData().hasUrls():
             links = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")]
             if links:
@@ -583,24 +541,41 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def dropEvent(self, event):
+        """Allows dropping level files into this tool. Dragging the file is handed in dragEnterEvent()"""
+
         event.accept()
         link = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")][0]
         self.fileOpen(link)
 
 
-    def drawRoom(self):
-        """Draws basic sprites to represent actor positions"""
-
-        self.saveActor(self.current_actor)
-
-        for act in self.view_actors:
-            act.deleteLater()
-        self.view_actors = []
+    def drawRoom(self, toggle_hide=False):
+        """Updates actor info and draws basic sprites to represent the room and its actors"""
 
         if self.room_data == None:
             return
 
-        # draw room sprite before the actor sprites
+        self.drawing = True
+
+        # delete old actor sprites
+        for act in self.actor_sprites:
+            act.deleteLater()
+        self.actor_sprites = []
+
+        # redraw actor list
+        self.keys.clear()
+        self.ui.listWidget.clear()
+        for act in self.room_data.actors:
+            self.keys.append(act.key)
+            self.ui.listWidget.addItem(f'{ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]}')
+        if self.current_actor >= 0:
+            self.ui.listWidget.setCurrentRow(self.next_actor)
+        else:
+            self.ui.listWidget.setCurrentRow(0)
+
+        # display the info of the currently selected actor
+        self.displayActorInfo()
+
+        # TODO: read the room grid data to draw out the room background sprite, with a QFrame as each tile
         room_name = os.path.basename(self.file).split('.')[0]
         if room_name in ROOM_ICONS:
             pix = QtGui.QPixmap(os.path.join(ROOM_ICONS_PATH, f"{room_name}.png"))
@@ -609,39 +584,63 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.roomFrame.clear()
 
         # now draw the actor sprites
+        current_vAct = None
         for i, act in enumerate(self.room_data.actors):
             posX = self.ui.roomFrame.x() + round(((act.posX - self.topleft[0] - 0.75) * 30))
             posY = self.ui.roomFrame.y() + round((act.posZ - self.topleft[1]) * 30)
 
+            # use custom QLabel if it's the currently selected actor, otherwise use a basic QLabel
             if i == self.current_actor:
                 vAct = SelectedLabel(self)
             else:
                 vAct = QtWidgets.QLabel(self)
-            vAct.setGeometry(posX, posY, 45, 45)
 
+            # define the sprite name and create a pixmap out of it
             name = self.ui.listWidget.item(i).text()
             if name in ACTOR_ICONS:
                 pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, f"{name}.png"))
             else:
-                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "Null.png"))
-                act.visible = not self.hideEmptySprites
+                pix = QtGui.QPixmap(DEFAULT_ICON_PATH)
+                # if "hide objects without sprites" was just toggled, set the visible variable
+                if toggle_hide:
+                    act.visible = not self.hideEmptySprites
 
-            trans = QtGui.QTransform()
-            trans.rotate(act.rotY * -1)
-            pix = pix.transformed(trans)
+            # rotate sprite, will need to create a mapping of actors and default rotations
+            # trans = QtGui.QTransform()
+            # trans.rotate(act.rotY * -1)
+            # pix = pix.transformed(trans)
+
+            # add sprite and define label geometry
             vAct.setPixmap(pix)
             vAct.setScaledContents(True)
+            vAct.setGeometry(posX, posY, 45, 45)
 
-            self.view_actors.append(vAct)
+            # add sprite to a reference list so we can delete it before a redraw
+            self.actor_sprites.append(vAct)
+
+            # create reference to the sprite of the currently selected actor
+            if i == self.current_actor:
+                current_vAct = vAct
+
+            # only show the sprite if it's not hidden
             if act.visible:
                 vAct.show()
 
-        # if the currently selected actor is visible, raise it to the top layer
-        if self.view_actors and self.room_data.actors[self.current_actor].visible:
-            self.view_actors[self.current_actor].raise_()
+        # raise the currently selected actor's sprite to the top layer
+        if current_vAct != None:
+            current_vAct.raise_()
+
+        self.drawing = False
 
 
 class PosLineEdit(QtWidgets.QLineEdit):
+    """Allows moving the actor by using the arrow keys
+
+    These directions go from negative to positive:
+        X-axis: West -> East
+        Y-axis: Down -> Up
+        Z-axis: North -> South"""
+
     directions = {
         'X': (QtCore.Qt.Key_Left, QtCore.Qt.Key_Right),
         'Y': (QtCore.Qt.Key_Down, QtCore.Qt.Key_Up),
@@ -658,7 +657,7 @@ class PosLineEdit(QtWidgets.QLineEdit):
             pos = float(self.text())
         except ValueError:
             return
-        
+
         dirs = self.directions[self.objectName()[-1]]
         if key == dirs[0]:
             amount = -1.5
@@ -666,11 +665,17 @@ class PosLineEdit(QtWidgets.QLineEdit):
             amount = 1.5
         else:
             return
-        
+
         self.setText(str(pos + amount))
 
 
 class RotLineEdit(QtWidgets.QLineEdit):
+    """Allows rotating the actor by using the arrow keys
+
+    Rotating on the Y-axis is what we want to use in 99% of situations. The direction should be self explanatory
+
+    Some actors have natural rotations that differ from most, but this tool automatically adjusts for them"""
+
     def keyPressEvent(self, event):
         super().keyPressEvent(event)
         self.rotateTile(event.key())
@@ -687,28 +692,27 @@ class RotLineEdit(QtWidgets.QLineEdit):
             rot = -90.0
         else:
             return
-        
+
         self.setText(str(rot))
 
 
 class SelectedLabel(QtWidgets.QLabel):
+    """A custom QLabel that flashes its opacity to indicate focus on this object"""
+
     def __init__(self, parent=None):
         super().__init__()
         self.setParent(parent)
-        self.grow = True
+
         effect = QtWidgets.QGraphicsOpacityEffect(self)
         self.setGraphicsEffect(effect)
-        self.anim = QtCore.QPropertyAnimation(effect, b"opacity")
-        self.anim.finished.connect(self.reverseAnimation)
-        self.anim.setDuration(1000)
-        self.reverseAnimation()
-    
-    def reverseAnimation(self):
-        self.grow = not self.grow
-        if self.grow:
-            self.anim.setStartValue(0.5)
-            self.anim.setEndValue(1.0)
-        else:
-            self.anim.setStartValue(1.0)
-            self.anim.setEndValue(0.5)
-        self.anim.start()
+        self.anim_1 = QtCore.QPropertyAnimation(effect, b"opacity")
+        self.anim_1.finished.connect(self.startAnimation)
+        self.anim_1.setDuration(750)
+        self.values = [0.5, 1.0]
+        self.startAnimation()
+
+    def startAnimation(self):
+        self.anim_1.setStartValue(self.values[0])
+        self.anim_1.setEndValue(self.values[1])
+        self.values.reverse()
+        self.anim_1.start()
