@@ -22,10 +22,10 @@ ACTOR_IDS = list(ACTORS.values())
 ACTOR_NAMES = list(ACTORS.keys())
 REQUIRED_ACTORS = [0x185] # MapStatic
 
-icons_folder = 'Icons'
+icons_folder = 'LevelEditorUi/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons'
 ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
 ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
-DEFAULT_ICON_PATH = 'LevelEditorUi/Icons/NoSprite.png' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons/NoSprite.png'
+TILE_ICONS_PATH = os.path.join(root_path, icons_folder, 'Tiles')
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -75,7 +75,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tiles = []
         for i in range(8):
             for b in range(10):
-                tile = QtWidgets.QFrame(self.ui.roomFrame)
+                tile = QtWidgets.QLabel(self.ui.roomFrame)
                 tile.setGeometry((45 * b), (45 * i), 45, 45)
                 tile.setStyleSheet("")
                 self.tiles.append(tile)
@@ -110,23 +110,28 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # draw out the room based on tile data
             for i, tile in enumerate(self.room_data.grid.tilesdata):
+                v_tile: QtWidgets.QLabel = self.tiles[i]
+
                 contains_collision: bool = tile.flags1['containscollision']
                 deep_water: bool = tile.flags1['deepwaterlava']
                 is_water: bool = tile.flags3['iswaterlava']
-                v_tile: QtWidgets.QFrame = self.tiles[i]
-                t_color = ""
-                if contains_collision:
-                    t_color = "#775c2e"
+                can_dig: bool = tile.flags3['isdigspot']
+                tile_sprite = 'Walkable' #"#e5cc8f"
+
+                # some tiles contain collision for actors, such as ObjTreasureBox. By checking can_dig, we can elim most
+                if contains_collision and not can_dig:
+                    tile_sprite = 'Wall' #"#775c2e"
                 else:
                     if deep_water:
-                        t_color = "#6b7d63"
+                        tile_sprite = 'Water' #"#6b7d63"
                         if not is_water:
-                            t_color = "black"
+                            tile_sprite = 'Hole' #"black"
                     elif is_water:
-                        t_color = "#8a9b75"
-                    else:
-                        t_color = "#e5cc8f"
-                v_tile.setStyleSheet(f"background-color: {t_color};")
+                        tile_sprite = 'ShallowWater' #"#8a9b75"
+
+                pix = QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{tile_sprite}.png"))
+                v_tile.setPixmap(pix)
+                v_tile.setScaledContents(True)
 
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
@@ -275,7 +280,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
                 self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
                 self.displayEntryInfo()
-                self.toggleShowButton()
         
         for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
             field.home(False)
@@ -436,7 +440,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         act = self.room_data.actors[self.current_actor]
         act.visible = not act.visible
-        self.toggleShowButton()
+        self.drawRoom()
 
 
     def toggleShowButton(self):
@@ -590,7 +594,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if name in ACTOR_ICONS:
                 pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, f"{name}.png"))
             else:
-                pix = QtGui.QPixmap(DEFAULT_ICON_PATH)
+                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "NoSprite.png"))
                 # if "hide objects without sprites" was just toggled, set the visible variable
                 if toggle_hide:
                     act.visible = not self.hideEmptySprites
@@ -624,6 +628,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if current_vAct != None:
             current_vAct.raise_()
 
+        self.toggleShowButton()
         self.drawing = False
 
 
