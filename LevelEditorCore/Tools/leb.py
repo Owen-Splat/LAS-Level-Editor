@@ -596,6 +596,8 @@ class Grid:
 			raise ValueError('Cannot determine room type')
 		
 		self.tilesdata = []
+		
+		# room_height goes by the z-axis
 		if self.info.room_height == 8:
 			for i in range(80): # top-down room
 				start_addr = (0x10 * i)

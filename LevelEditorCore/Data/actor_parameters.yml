@@ -1,0 +1,24 @@
+AreaLevelOpen:
+  - Level Name
+  - Room Name
+  - Link Animation
+ObjBladeTrap:
+  - East Distance
+  - West Distance
+  - South Distance
+  - North Distance
+ObjCaveRock:
+  - East Push
+  - West Push
+  - South Push
+  - North Push
+ObjCrystalSwitch:
+  - State (0=Blue, 1=Orange)
+ObjSquareBlock:
+  - East Push
+  - West Push
+  - South Push
+  - North Push
+ObjTreasureBox:
+  - Appear Flag (Keep as Switch0)
+  - Chest Contents
