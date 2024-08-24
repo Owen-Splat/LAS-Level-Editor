@@ -92,7 +92,7 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>231</x>
+      <x>690</x>
       <y>9</y>
       <width>501</width>
       <height>561</height>
@@ -1357,7 +1357,7 @@
    <widget class="QLabel" name="label">
     <property name="geometry">
      <rect>
-      <x>750</x>
+      <x>241</x>
       <y>410</y>
       <width>431</width>
       <height>151</height>
@@ -1397,7 +1397,7 @@
    <widget class="QCheckBox" name="hideUnimportantCheck">
     <property name="geometry">
      <rect>
-      <x>750</x>
+      <x>241</x>
       <y>10</y>
       <width>181</width>
       <height>21</height>
@@ -1410,7 +1410,7 @@
    <widget class="QCheckBox" name="gridCheck">
     <property name="geometry">
      <rect>
-      <x>1100</x>
+      <x>591</x>
       <y>10</y>
       <width>81</width>
       <height>21</height>
@@ -1426,7 +1426,7 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>231</x>
       <y>40</y>
       <width>450</width>
       <height>360</height>
@@ -1644,7 +1644,7 @@
    <widget class="QFrame" name="roomFrame">
     <property name="geometry">
      <rect>
-      <x>740</x>
+      <x>231</x>
       <y>40</y>
       <width>450</width>
       <height>360</height>
