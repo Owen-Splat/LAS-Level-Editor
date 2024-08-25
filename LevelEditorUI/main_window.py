@@ -74,6 +74,8 @@ class MainWindow(QtWidgets.QMainWindow):
             elif line.objectName().startswith('dataRot'):
                 line.__class__ = RotLineEdit
 
+        self.ui.roomFrame.__class__ = roomView
+        self.ui.roomFrame.setAcceptDrops(True)
         self.tiles = []
         for i in range(8):
             for b in range(10):
@@ -82,6 +84,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 tile.setStyleSheet("")
                 self.tiles.append(tile)
         self.ui.gridWidget.raise_() # raise the grid above the painted tiles
+
+        # make parameter info items in the table unable to be edited
+        for i in range(8):
+            info_item = QtWidgets.QTableWidgetItem()
+            info_item.setFlags(info_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
+            self.ui.tableWidget.setItem(i, 0, info_item)
+            data_item = QtWidgets.QTableWidgetItem()
+            self.ui.tableWidget.setItem(i, 1, data_item)
 
         self.setFixedSize(self.size())
         self.setWindowTitle('LAS Level Editor')
@@ -184,10 +194,17 @@ class MainWindow(QtWidgets.QMainWindow):
         self.keys = []
         self.ui.listWidget.clear()
         self.ui.listWidget.setEnabled(False)
+        for i in range(8):
+            self.ui.tableWidget.item(i, 0).setText('')
+            self.ui.tableWidget.item(i, 1).setText('')
+        self.ui.tableWidget.setEnabled(False)
         self.ui.dataType.clear()
-        for c in self.ui.groupBox.children():
-            c.setEnabled(False)
-        for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit):
+        for c in self.ui.centralwidget.children():
+            try:
+                c.setEnabled(False)
+            except AttributeError: # some objects won't have this attribute
+                pass
+        for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit):
             field.setText('')
         for act in self.actor_sprites:
             act.deleteLater()
@@ -249,12 +266,12 @@ class MainWindow(QtWidgets.QMainWindow):
                         param = self.removeTrailingZeros(f'{act.parameters[i]:.8f}')
                     else:
                         param = str(act.parameters[i])
-                    exec(f'self.ui.dataParameters_{i}.setText(str(param))')
-                    exec(f'self.ui.dataParameters_{i}.setPlaceholderText("")')
+                    self.ui.tableWidget.item(i, 0).setText('???')
+                    self.ui.tableWidget.item(i, 1).setText(param)
                     if full_name in ACTOR_PARAMETERS:
                         if i+1 <= len(ACTOR_PARAMETERS[full_name]):
                             param_info = str(ACTOR_PARAMETERS[full_name][i])
-                            exec(f'self.ui.dataParameters_{i}.setPlaceholderText(param_info)')
+                            self.ui.tableWidget.item(i, 0).setText(param_info)
 
                 self.ui.dataSwitches_0.setText(str(act.switches[0][1]))
                 self.ui.comboBox.setCurrentIndex(act.switches[0][0])
@@ -266,12 +283,12 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.comboBox_4.setCurrentIndex(act.switches[3][0])
 
                 # relationships
-                self.ui.comboBox_5.setCurrentIndex(act.relationships.is_enemy)
-                self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
-                self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
+                # self.ui.comboBox_5.setCurrentIndex(act.relationships.is_enemy)
+                # self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
+                # self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
                 self.displayEntryInfo()
 
-        for field in self.ui.groupBox.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
+        for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
             field.home(False)
 
         # let the GUI know that any further changes are from the user and now should update
@@ -308,7 +325,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for entry in act.relationships.section_3:
             relationship_info['Actors_That_Use_Me'].append(self.room_data.actors[entry].key)
         
-        self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
+        # self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
     
 
     def saveEntryData(self) -> None:
@@ -330,16 +347,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 act.scaleY = float(self.ui.dataScale_Y.text())
                 act.scaleZ = float(self.ui.dataScale_Z.text())
 
-                ldict = locals()
                 for i in range(8):
-                    exec(f"v = self.ui.dataParameters_{i}.text()")
-                    if str(ldict['v']).isdigit():
-                        act.parameters[i] = int(ldict['v'])
+                    v = self.ui.tableWidget.item(i, 1).text()
+                    if v.isdigit():
+                        act.parameters[i] = int(v)
                     else:
                         try:
-                            exec(f"act.parameters[i] = float(ldict['v'])")
+                            exec(f"act.parameters[i] = float(v)")
                         except ValueError:
-                            exec(f"act.parameters[i] = bytes(ldict['v'], 'utf-8')")
+                            exec(f"act.parameters[i] = bytes(v, 'utf-8')")
                 
                 act.switches[0] = (self.ui.comboBox.currentIndex(), int(self.ui.dataSwitches_0.text()))
                 act.switches[1] = (self.ui.comboBox_2.currentIndex(), int(self.ui.dataSwitches_1.text()))
@@ -480,11 +496,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def enableEditor(self) -> None:
-        fields = [f for f in self.ui.tab.children()]
-        fields += [f for f in self.ui.groupBox.children()]
-        fields += [f for f in self.ui.tab_2.children()]
+        fields = self.ui.centralwidget.children()
         for field in fields:
-            field.setProperty('enabled', True)
+            try:
+                field.setProperty('enabled', True)
+            except AttributeError: # some objects won't have this attribute
+                pass
         abc_actors = list(copy.deepcopy(ACTORS))
         abc_actors.sort()
         for actor in abc_actors:
@@ -541,8 +558,10 @@ class MainWindow(QtWidgets.QMainWindow):
         """Allows dropping level files into this tool. Dragging the file is handed in dragEnterEvent()"""
 
         event.accept()
-        link = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")][0]
-        self.fileOpen(link)
+        if event.mimeData().hasUrls():
+            link = [str(l.toLocalFile()) for l in event.mimeData().urls() if l.toLocalFile().endswith(".leb")][0]
+            self.fileOpen(link)
+            return
 
 
     def drawRoom(self, toggle_hide=False) -> None:
@@ -578,6 +597,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, act in enumerate(self.room_data.actors):
             if i == self.current_actor:
                 sprite = SelectedLabel(self.ui.roomFrame)
+                sprite.actor_index = i
             else:
                 sprite = QtWidgets.QLabel(self.ui.roomFrame)
 
@@ -758,6 +778,8 @@ class RotLineEdit(QtWidgets.QLineEdit):
 class SelectedLabel(QtWidgets.QLabel):
     """A custom QLabel that flashes its opacity to indicate focus on this object"""
 
+    actor_index = -1
+
     def __init__(self, parent=None) -> None:
         super().__init__()
         self.setParent(parent)
@@ -777,3 +799,42 @@ class SelectedLabel(QtWidgets.QLabel):
         self.anim_1.setEndValue(self.values[1])
         self.values.reverse()
         self.anim_1.start()
+
+    def mouseMoveEvent(self, e):
+        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            drag = QtGui.QDrag(self)
+            mime = QtCore.QMimeData()
+            drag.setMimeData(mime)
+            drag.exec_(QtCore.Qt.DropAction.MoveAction)
+
+
+class roomView(QtWidgets.QFrame):
+    def dragEnterEvent(self, event):
+        event.accept()
+
+    def dragMoveEvent(self, event):
+        event.accept()
+        actor_obj: SelectedLabel = self.findChildren(SelectedLabel)[0]
+        new_pos = event.pos()
+        updated_pos = QtCore.QPoint(new_pos.x() - round(actor_obj.width() / 2), new_pos.y() - round(actor_obj.height() / 2))
+
+        if (new_pos.x() < (self.x() + self.width())) and (new_pos.y() < (self.y() + self.height())):
+            snap_margin = 45 / 2
+            new_x = round(round(updated_pos.x() / snap_margin) * snap_margin)
+            new_y = round(round(updated_pos.y() / snap_margin) * snap_margin)
+            actor_obj.setGeometry(new_x, new_y, actor_obj.width(), actor_obj.height())
+
+            snap_margin = 0.75
+            new_x = self.parent().parent().topleft[0] + ((updated_pos.x() + (actor_obj.width() / 2)) / 30)
+            new_x = round(new_x / snap_margin) * snap_margin
+            self.parent().parent().ui.dataPos_X.setText(str(new_x))
+
+            if self.parent().parent().room_data.grid.info.room_height == 8: # 3D room
+                new_z = self.parent().parent().topleft[1] + ((updated_pos.y() + (actor_obj.height() / 2)) / 30)
+                new_z = round(new_z / snap_margin) * snap_margin
+                self.parent().parent().ui.dataPos_Z.setText(str(new_z))
+
+            else: # 2D room
+                new_y = ((updated_pos.y() + (actor_obj.height() / 2)) / 30)
+                new_y = round(new_y / snap_margin) * snap_margin
+                self.parent().parent().ui.dataPos_Y.setText(str(new_y))
