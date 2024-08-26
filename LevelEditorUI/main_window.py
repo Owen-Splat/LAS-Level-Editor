@@ -597,9 +597,9 @@ class MainWindow(QtWidgets.QMainWindow):
         for i, act in enumerate(self.room_data.actors):
             if i == self.current_actor:
                 sprite = SelectedLabel(self.ui.roomFrame)
-                sprite.actor_index = i
             else:
-                sprite = QtWidgets.QLabel(self.ui.roomFrame)
+                sprite = ActorLabel(self.ui.roomFrame)
+                sprite.actor_index = i
 
             # define the sprite name and create a pixmap out of it
             name = self.ui.listWidget.item(i).text()
@@ -726,9 +726,9 @@ class PosLineEdit(QtWidgets.QLineEdit):
         'Z': (QtCore.Qt.Key_Up, QtCore.Qt.Key_Down)
     }
 
-    def keyPressEvent(self, event) -> None:
-        super().keyPressEvent(event)
-        self.moveTile(event.key())
+    def keyPressEvent(self, arg__1) -> None:
+        super().keyPressEvent(arg__1)
+        self.moveTile(arg__1.key())
 
     def moveTile(self, key) -> None:
         try:
@@ -755,9 +755,9 @@ class RotLineEdit(QtWidgets.QLineEdit):
 
     Some actors have natural rotations that differ from most, but this tool automatically adjusts for them"""
 
-    def keyPressEvent(self, event) -> None:
-        super().keyPressEvent(event)
-        self.rotateTile(event.key())
+    def keyPressEvent(self, arg__1) -> None:
+        super().keyPressEvent(arg__1)
+        self.rotateTile(arg__1.key())
 
     def rotateTile(self, key) -> None:
         if key == QtCore.Qt.Key_Down:
@@ -775,10 +775,32 @@ class RotLineEdit(QtWidgets.QLineEdit):
         self.window().drawRoom()
 
 
+class ActorLabel(QtWidgets.QLabel):
+    actor_index = -1
+    clicked = False
+
+    def mousePressEvent(self, ev) -> None:
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton:
+            ev.accept()
+            self.clicked = True
+            return
+        ev.ignore()
+
+    def mouseReleaseEvent(self, ev) -> None:
+        if ev.button() == QtCore.Qt.MouseButton.LeftButton and self.clicked:
+            ev.accept()
+            self.clicked = False
+            release_pos = ev.position()
+            x_in_bounds = True if release_pos.x() > 0 and release_pos.x() < self.width() else False
+            y_in_bounds = True if release_pos.y() > 0 and release_pos.y() < self.height() else False
+            if x_in_bounds and y_in_bounds:
+                self.parent().parent().parent().ui.listWidget.setCurrentRow(self.actor_index)
+            return
+        ev.ignore()
+
+
 class SelectedLabel(QtWidgets.QLabel):
     """A custom QLabel that flashes its opacity to indicate focus on this object"""
-
-    actor_index = -1
 
     def __init__(self, parent=None) -> None:
         super().__init__()
@@ -800,8 +822,9 @@ class SelectedLabel(QtWidgets.QLabel):
         self.values.reverse()
         self.anim_1.start()
 
-    def mouseMoveEvent(self, e):
-        if e.buttons() == QtCore.Qt.MouseButton.LeftButton:
+    def mouseMoveEvent(self, ev):
+        if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
+            ev.accept()
             drag = QtGui.QDrag(self)
             mime = QtCore.QMimeData()
             drag.setMimeData(mime)
