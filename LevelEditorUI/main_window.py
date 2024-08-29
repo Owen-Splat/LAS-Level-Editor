@@ -31,31 +31,25 @@ TILE_ICONS_PATH = os.path.join(root_path, icons_folder, 'Tiles')
 
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self) -> None:
+    def __init__(self, app_name) -> None:
         super (MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.app_name = app_name
+        self.actor_sprites = []
+
+        # by default, hide objects without sprites
+        self.hideEmptySprites = True
+        self.ui.hideUnimportantCheck.setChecked(True)
+
+        # accept drop events so that files can be opened by dragging them into the editor
         self.setAcceptDrops(True)
 
-        self.file = ''
-        self.file_loaded = False
-        self.save_location = ''
-        self.data_viewed = False
-        self.room_data = None
-        self.current_actor = -1
-        self.next_actor = -1
-        self.current_section = -1
-        self.current_entry = -1
-        self.deleted = False
-        self.manual_editing = False
-        self.drawing = False
-        self.keys = []
-        self.actor_sprites = []
-        self.hideEmptySprites = True
+        self.tile_unit_size = 1.5 # the tile size by in-game units
+        self.tile_pixel_size = 45 # how many pixels make up a tile
+        self.snap_margin = self.tile_unit_size / 2 # grid snap margin, by default it snaps to 1/2 of a tile
 
-        self.ui.hideUnimportantCheck.setChecked(True)
-        self.ui.gridWidget.hide()
-
+        # general widget signals (signals connect events to functions)
         self.ui.actionOpen.triggered.connect(self.fileOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
         self.ui.actionSaveAs.triggered.connect(self.fileSaveAs)
@@ -74,18 +68,26 @@ class MainWindow(QtWidgets.QMainWindow):
             elif line.objectName().startswith('dataRot'):
                 line.__class__ = RotLineEdit
 
+        # set up the roomView and tiles that will represent the room layout
+        # we use a custom class and setAcceptDrops so that actor sprites can be dragged
         self.ui.roomFrame.__class__ = roomView
         self.ui.roomFrame.setAcceptDrops(True)
+
+        # LAS rooms are defined by 10x8 tiles from a top-down view
+        # Sidecroller rooms are 10x2 tiles, but will be drawn the same, represented as front-facing
         self.tiles = []
         for i in range(8):
             for b in range(10):
                 tile = QtWidgets.QLabel(self.ui.roomFrame)
-                tile.setGeometry((45 * b), (45 * i), 45, 45)
-                tile.setStyleSheet("")
+                tile.setGeometry((self.tile_pixel_size * b), (self.tile_pixel_size * i), self.tile_pixel_size, self.tile_pixel_size)
                 self.tiles.append(tile)
-        self.ui.gridWidget.raise_() # raise the grid above the painted tiles
 
-        # make parameter info items in the table unable to be edited
+        # raise the grid and make mouse events go through it, then hide it by default
+        self.ui.gridWidget.raise_()
+        self.ui.gridWidget.setAttribute(QtCore.Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.ui.gridWidget.hide()
+
+        # make parameter names in the table unable to be edited
         for i in range(8):
             info_item = QtWidgets.QTableWidgetItem()
             info_item.setFlags(info_item.flags() & ~QtCore.Qt.ItemFlag.ItemIsEditable)
@@ -93,8 +95,9 @@ class MainWindow(QtWidgets.QMainWindow):
             data_item = QtWidgets.QTableWidgetItem()
             self.ui.tableWidget.setItem(i, 1, data_item)
 
+        # for now, the window is fixed size because I haven't yet learned how to use layouts for rescaling :P
         self.setFixedSize(self.size())
-        self.setWindowTitle('LAS Level Editor')
+        self.fileClose() # call fileClose() to define default variable values
         self.show()
 
 
@@ -117,14 +120,14 @@ class MainWindow(QtWidgets.QMainWindow):
         except (FileNotFoundError, ValueError) as e:
             self.showError(e.args[0])
         else:
-            self.setWindowTitle(os.path.basename(path))
+            self.setWindowTitle(f"{self.app_name} - {os.path.basename(path)}")
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
 
             # draw out the room based on tile data
             if self.room_data.grid.info.room_height == 8:
-                self.draw3DRoom()
+                self.draw3DRoomLayout()
             else:
-                self.draw2DRoom()
+                self.draw2DRoomLayout()
 
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
@@ -147,7 +150,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.showError(e.args[0])
             else:
                 message = QtWidgets.QMessageBox()
-                message.setWindowTitle('LAS Level Editor')
+                message.setWindowTitle(self.app_name)
                 message.setText('File saved successfully')
                 message.exec()
 
@@ -173,12 +176,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 else:
                     self.file = path
                     message = QtWidgets.QMessageBox()
-                    message.setWindowTitle('LAS Level Editor')
+                    message.setWindowTitle(self.app_name)
                     message.setText('File saved successfully')
                     message.exec()
 
 
     def fileClose(self) -> None:
+        """Closes the currently opened file and resets variables"""
+
+        # general variables reset
         self.file = ''
         self.file_loaded = False
         self.save_location = ''
@@ -186,12 +192,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.room_data = None
         self.current_actor = -1
         self.next_actor = -1
-        self.current_section = -1
-        self.current_entry = -1
         self.deleted = False
         self.manual_editing = False
         self.drawing = False
-        self.keys = []
+        self.actor_keys = []
+
+        # clear actor info widgets
         self.ui.listWidget.clear()
         self.ui.listWidget.setEnabled(False)
         for i in range(8):
@@ -206,12 +212,17 @@ class MainWindow(QtWidgets.QMainWindow):
                 pass
         for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit):
             field.setText('')
+
+        # delete actor sprites
         for act in self.actor_sprites:
             act.deleteLater()
         self.actor_sprites = []
+
+        # clear room layout tiles, do not delete because we want to keep these to draw future rooms
         for tile in self.tiles:
             tile.clear()
-        self.setWindowTitle('Level Editor')
+
+        self.setWindowTitle(self.app_name)
 
 
     def selectedActorChanged(self, current_row) -> None:
@@ -380,7 +391,7 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 self.saveActor(self.current_actor)
                 act = copy.deepcopy(self.room_data.actors[self.current_actor])
-                while act.key in self.keys:
+                while act.key in self.actor_keys:
                     act.key = random.getrandbits(64) # the list of keys is updated when calling drawRoom()
                 self.room_data.actors.append(act)
                 self.next_actor = self.ui.listWidget.count()
@@ -433,7 +444,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 except IndexError:
                     print('section 3:' + i)
 
-        self.keys.remove(self.room_data.actors[self.current_actor].key)
+        self.actor_keys.remove(self.room_data.actors[self.current_actor].key)
         del self.room_data.actors[self.current_actor]
         if self.current_actor == self.ui.listWidget.count() - 1:
             self.next_actor = self.current_actor - 1
@@ -538,7 +549,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """Opens a new QMessageBox with error_message as the text"""
 
         message = QtWidgets.QMessageBox()
-        message.setWindowTitle('LAS Level Editor')
+        message.setWindowTitle(self.app_name)
         message.setText(error_message)
         message.exec()
 
@@ -578,10 +589,10 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actor_sprites = []
 
         # redraw actor list
-        self.keys.clear()
+        self.actor_keys.clear()
         self.ui.listWidget.clear()
         for act in self.room_data.actors:
-            self.keys.append(act.key)
+            self.actor_keys.append(act.key)
             self.ui.listWidget.addItem(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))])
         if self.current_actor >= 0:
             self.ui.listWidget.setCurrentRow(self.next_actor)
@@ -611,7 +622,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 if toggle_hide:
                     act.visible = not self.hideEmptySprites
 
-            # create refs of enemy sprites to raise above other actors
+            # create refs of enemy sprites to raise above other sprites
             if name.startswith('Enemy'):
                 enemy_sprites.append(sprite)
 
@@ -620,19 +631,21 @@ class MainWindow(QtWidgets.QMainWindow):
             # trans.rotate(act.rotY * -1)
             # pix = pix.transformed(trans)
 
-            # add sprite and scale it
-            sprite.setPixmap(pix)
-            sprite.setScaledContents(True)
-
             # define geometry
-            posX = round(((act.posX - self.topleft[0]) * 30) - 22.5)
-
+            spr_width = round(self.tile_pixel_size * act.scaleX)
+            spr_height = round(self.tile_pixel_size * act.scaleZ)
+            unit_pixel_ratio = self.tile_pixel_size / self.tile_unit_size
+            posX = round(((act.posX - self.topleft[0]) * unit_pixel_ratio) - (spr_width / 2))
             if self.room_data.grid.info.room_height == 8: # 3D room
-                posY = round(((act.posZ - self.topleft[1]) * 30) - 22.5)
+                posY = round(((act.posZ - self.topleft[1]) * unit_pixel_ratio) - (spr_height / 2))
             else: # 2D room
-                posY = round((12 - act.posY) * 30)
+                posY = round((12 - act.posY) * unit_pixel_ratio)
+            sprite.setGeometry(posX, posY, spr_width, spr_height)
 
-            sprite.setGeometry(posX, posY, 45, 45)
+            # we scale the pixmap instead of letting the QLabel do it, this way the pixel art is not blurred and stays crisp
+            pix = pix.scaled(sprite.width(), sprite.height(), 
+                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio, QtCore.Qt.TransformationMode.FastTransformation)
+            sprite.setPixmap(pix)
 
             # add sprite to a reference list so we can delete it before a redraw
             self.actor_sprites.append(sprite)
@@ -649,7 +662,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for spr in enemy_sprites:
             spr.raise_()
 
-        # raise the currently selected actor's sprite above everything else
+        # raise the currently selected actor above everything else
         if current_sprite != None:
             current_sprite.raise_()
 
@@ -657,7 +670,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.drawing = False
 
 
-    def draw3DRoom(self) -> None:
+    def draw3DRoomLayout(self) -> None:
         """Draws out the sprites to represent a 3D room from a top-down view"""
 
         for i, tile in enumerate(self.room_data.grid.tilesdata):
@@ -666,7 +679,7 @@ class MainWindow(QtWidgets.QMainWindow):
             v_tile.setScaledContents(True)
 
 
-    def draw2DRoom(self) -> None:
+    def draw2DRoomLayout(self) -> None:
         """Draws out the sprites to represent a 2D room from a front-facing view"""
 
         # we do not care about the z-axis technically being 2 tiles long, so we only look at half the tile data
@@ -705,11 +718,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 tile_sprite = 'ShallowWater' #"#8a9b75"
 
         return tile_sprite
-
-
-class MyDumper(yaml.Dumper):
-    def increase_indent(self, flow=False, indentless=False):
-        return super(MyDumper, self).increase_indent(flow, False)
 
 
 class PosLineEdit(QtWidgets.QLineEdit):
@@ -822,7 +830,7 @@ class SelectedLabel(QtWidgets.QLabel):
         self.values.reverse()
         self.anim_1.start()
 
-    def mouseMoveEvent(self, ev):
+    def mouseMoveEvent(self, ev) -> None:
         if ev.buttons() == QtCore.Qt.MouseButton.LeftButton:
             ev.accept()
             drag = QtGui.QDrag(self)
@@ -832,32 +840,34 @@ class SelectedLabel(QtWidgets.QLabel):
 
 
 class roomView(QtWidgets.QFrame):
-    def dragEnterEvent(self, event):
+    def dragEnterEvent(self, event) -> None:
         event.accept()
 
-    def dragMoveEvent(self, event):
+    def dragMoveEvent(self, event) -> None:
         event.accept()
+        main_window = self.parent().parent()
         actor_obj: SelectedLabel = self.findChildren(SelectedLabel)[0]
         new_pos = event.pos()
         updated_pos = QtCore.QPoint(new_pos.x() - round(actor_obj.width() / 2), new_pos.y() - round(actor_obj.height() / 2))
 
         if (new_pos.x() < (self.x() + self.width())) and (new_pos.y() < (self.y() + self.height())):
-            snap_margin = 45 / 2
-            new_x = round(round(updated_pos.x() / snap_margin) * snap_margin)
-            new_y = round(round(updated_pos.y() / snap_margin) * snap_margin)
+            unit_pixel_ratio = main_window.tile_pixel_size / main_window.tile_unit_size
+            new_x = (updated_pos.x() + (actor_obj.width() / 2)) / unit_pixel_ratio
+            new_y = (updated_pos.y() + (actor_obj.height() / 2)) / unit_pixel_ratio
+
+            new_x = main_window.topleft[0] + new_x
+            new_x = round(new_x / main_window.snap_margin) * main_window.snap_margin
+            main_window.ui.dataPos_X.setText(str(new_x))
+            new_x = round(((new_x - main_window.topleft[0]) * unit_pixel_ratio) - (actor_obj.width() / 2))
+
+            if main_window.room_data.grid.info.room_height == 8:
+                new_y = main_window.topleft[1] + new_y
+                new_y = round(new_y / main_window.snap_margin) * main_window.snap_margin
+                main_window.ui.dataPos_Z.setText(str(new_y))
+                new_y = round(((new_y - main_window.topleft[1]) * unit_pixel_ratio) - (actor_obj.height() / 2))
+            else:
+                new_y = round(new_y / main_window.snap_margin) * main_window.snap_margin
+                main_window.ui.dataPos_Y.setText(str(new_y))
+                new_y = round((12 - new_y) * unit_pixel_ratio)
+
             actor_obj.setGeometry(new_x, new_y, actor_obj.width(), actor_obj.height())
-
-            snap_margin = 0.75
-            new_x = self.parent().parent().topleft[0] + ((updated_pos.x() + (actor_obj.width() / 2)) / 30)
-            new_x = round(new_x / snap_margin) * snap_margin
-            self.parent().parent().ui.dataPos_X.setText(str(new_x))
-
-            if self.parent().parent().room_data.grid.info.room_height == 8: # 3D room
-                new_z = self.parent().parent().topleft[1] + ((updated_pos.y() + (actor_obj.height() / 2)) / 30)
-                new_z = round(new_z / snap_margin) * snap_margin
-                self.parent().parent().ui.dataPos_Z.setText(str(new_z))
-
-            else: # 2D room
-                new_y = ((updated_pos.y() + (actor_obj.height() / 2)) / 30)
-                new_y = round(new_y / snap_margin) * snap_margin
-                self.parent().parent().ui.dataPos_Y.setText(str(new_y))

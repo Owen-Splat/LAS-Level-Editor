@@ -18,5 +18,5 @@ timer = QtCore.QTimer()
 timer.start(100)
 timer.timeout.connect(lambda: None)
 
-m = window.MainWindow()
+m = window.MainWindow(app_name='LAS Level Editor')
 sys.exit(app.exec())
