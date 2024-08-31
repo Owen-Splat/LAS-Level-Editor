@@ -802,7 +802,7 @@ class ActorLabel(QtWidgets.QLabel):
             x_in_bounds = True if release_pos.x() > 0 and release_pos.x() < self.width() else False
             y_in_bounds = True if release_pos.y() > 0 and release_pos.y() < self.height() else False
             if x_in_bounds and y_in_bounds:
-                self.parent().parent().parent().ui.listWidget.setCurrentRow(self.actor_index)
+                self.window().ui.listWidget.setCurrentRow(self.actor_index)
             return
         ev.ignore()
 
@@ -845,29 +845,29 @@ class roomView(QtWidgets.QFrame):
 
     def dragMoveEvent(self, event) -> None:
         event.accept()
-        main_window = self.parent().parent()
         actor_obj: SelectedLabel = self.findChildren(SelectedLabel)[0]
         new_pos = event.pos()
         updated_pos = QtCore.QPoint(new_pos.x() - round(actor_obj.width() / 2), new_pos.y() - round(actor_obj.height() / 2))
 
         if (new_pos.x() < (self.x() + self.width())) and (new_pos.y() < (self.y() + self.height())):
-            unit_pixel_ratio = main_window.tile_pixel_size / main_window.tile_unit_size
+            unit_pixel_ratio = self.window().tile_pixel_size / self.window().tile_unit_size
             new_x = (updated_pos.x() + (actor_obj.width() / 2)) / unit_pixel_ratio
             new_y = (updated_pos.y() + (actor_obj.height() / 2)) / unit_pixel_ratio
 
-            new_x = main_window.topleft[0] + new_x
-            new_x = round(new_x / main_window.snap_margin) * main_window.snap_margin
-            main_window.ui.dataPos_X.setText(str(new_x))
-            new_x = round(((new_x - main_window.topleft[0]) * unit_pixel_ratio) - (actor_obj.width() / 2))
+            new_x = self.window().topleft[0] + new_x
+            new_x = round(new_x / self.window().snap_margin) * self.window().snap_margin
+            self.window().ui.dataPos_X.setText(str(new_x))
+            new_x = round(((new_x - self.window().topleft[0]) * unit_pixel_ratio) - (actor_obj.width() / 2))
 
-            if main_window.room_data.grid.info.room_height == 8:
-                new_y = main_window.topleft[1] + new_y
-                new_y = round(new_y / main_window.snap_margin) * main_window.snap_margin
-                main_window.ui.dataPos_Z.setText(str(new_y))
-                new_y = round(((new_y - main_window.topleft[1]) * unit_pixel_ratio) - (actor_obj.height() / 2))
+            if self.window().room_data.grid.info.room_height == 8:
+                new_y = self.window().topleft[1] + new_y
+                new_y = round(new_y / self.window().snap_margin) * self.window().snap_margin
+                self.window().ui.dataPos_Z.setText(str(new_y))
+                new_y = round(((new_y - self.window().topleft[1]) * unit_pixel_ratio) - (actor_obj.height() / 2))
             else:
-                new_y = round(new_y / main_window.snap_margin) * main_window.snap_margin
-                main_window.ui.dataPos_Y.setText(str(new_y))
+                new_y = round(new_y / self.window().snap_margin) * self.window().snap_margin
+                self.window().ui.dataPos_Y.setText(str(new_y))
                 new_y = round((12 - new_y) * unit_pixel_ratio)
 
+            # we move the sprite and manually edit the position fields, no need to call drawRoom
             actor_obj.setGeometry(new_x, new_y, actor_obj.width(), actor_obj.height())
