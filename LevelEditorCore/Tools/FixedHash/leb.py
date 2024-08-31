@@ -597,13 +597,12 @@ class Grid:
 		
 		self.tilesdata = []
 		
-		# room_height goes by the z-axis
-		if self.info.room_height == 8:
-			for i in range(80): # top-down room
+		if self.info.room_type == '3D':
+			for i in range(80):
 				start_addr = (0x10 * i)
 				self.tilesdata.append(self.TileData(self.data_entry.data[start_addr : (start_addr + 0x10)]))
 		else:
-			for i in range(20): # sidescroller room
+			for i in range(20):
 				start_addr = (0x10 * i)
 				self.tilesdata.append(self.TileData(self.data_entry.data[start_addr : (start_addr + 0x10)]))
 	
@@ -705,8 +704,9 @@ class Grid:
 
 	class InfoBlock:
 		def __init__(self, data):
-			self.room_height = readBytes(data, 0x0, 2)
-			self.room_width = readBytes(data, 0x2, 2)
+			self.room_height = readBytes(data, 0x0, 2) # how many tiles on the Z-axis: 8 for 3D rooms, 2 for 2D rooms
+			self.room_width = readBytes(data, 0x2, 2) # how many tiles on the X-axis, always 10
+			self.room_type = '3D' if self.room_height == 8 else '2D'
 			self.tile_size = readFloat(data, 0x4, 4)
 			self.x_coord = readFloat(data, 0x8, 4)
 			self.z_coord = readFloat(data, 0xC, 4)

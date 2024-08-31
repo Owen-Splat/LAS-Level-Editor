@@ -125,7 +125,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
 
             # draw out the room based on tile data
-            if self.room_data.grid.info.room_height == 8:
+            if self.room_data.grid.info.room_type == '3D':
                 self.draw3DRoomLayout()
             else:
                 self.draw2DRoomLayout()
@@ -613,9 +613,9 @@ class MainWindow(QtWidgets.QMainWindow):
             spr_height = round(self.tile_pixel_size * act.scaleZ)
             unit_pixel_ratio = self.tile_pixel_size / self.tile_unit_size
             posX = round(((act.posX - self.topleft[0]) * unit_pixel_ratio) - (spr_width / 2))
-            if self.room_data.grid.info.room_height == 8: # 3D room
+            if self.room_data.grid.info.room_type == '3D':
                 posY = round(((act.posZ - self.topleft[1]) * unit_pixel_ratio) - (spr_height / 2))
-            else: # 2D room
+            else:
                 posY = round((12 - act.posY) * unit_pixel_ratio)
             sprite.setGeometry(posX, posY, spr_width, spr_height)
 
@@ -836,7 +836,7 @@ class roomView(QtWidgets.QFrame):
             self.window().ui.dataPos_X.setText(str(new_x))
             new_x = round(((new_x - self.window().topleft[0]) * unit_pixel_ratio) - (actor_obj.width() / 2))
 
-            if self.window().room_data.grid.info.room_height == 8:
+            if self.window().room_data.grid.info.room_type == '3D':
                 new_y = self.window().topleft[1] + new_y
                 new_y = round(new_y / self.window().snap_margin) * self.window().snap_margin
                 self.window().ui.dataPos_Z.setText(str(new_y))

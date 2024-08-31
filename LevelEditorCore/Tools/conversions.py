@@ -1,5 +1,3 @@
-import string
-
 def removeTrailingZeros(dec: str) -> str:
     """Removes trailing zeros in float strings"""
 
