@@ -1,6 +1,7 @@
 from PySide6 import QtCore, QtWidgets, QtGui
 from LevelEditorUI.UI.ui_form import Ui_MainWindow
-import LevelEditorCore.Tools.leb as leb
+import LevelEditorCore.Tools.FixedHash.leb as leb
+import LevelEditorCore.Tools.conversions as convert
 import copy, os, sys, yaml, random
 
 if getattr(sys, "frozen", False):
@@ -260,21 +261,21 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.ID_lineEdit.setText(str(act.key))
                 self.ui.dataType.setCurrentIndex(
                     self.ui.dataType.findText(full_name, QtCore.Qt.MatchExactly))
-                self.ui.dataPos_X.setText(self.removeTrailingZeros(f'{act.posX:.8f}'))
-                self.ui.dataPos_Y.setText(self.removeTrailingZeros(f'{act.posY:.8f}'))
-                self.ui.dataPos_Z.setText(self.removeTrailingZeros(f'{act.posZ:.8f}'))
-                self.ui.dataRot_X.setText(self.removeTrailingZeros(f'{act.rotX:.8f}'))
-                self.ui.dataRot_Y.setText(self.removeTrailingZeros(f'{act.rotY:.8f}'))
-                self.ui.dataRot_Z.setText(self.removeTrailingZeros(f'{act.rotZ:.8f}'))
-                self.ui.dataScale_X.setText(self.removeTrailingZeros(f'{act.scaleX:.8f}'))
-                self.ui.dataScale_Y.setText(self.removeTrailingZeros(f'{act.scaleY:.8f}'))
-                self.ui.dataScale_Z.setText(self.removeTrailingZeros(f'{act.scaleZ:.8f}'))
+                self.ui.dataPos_X.setText(convert.removeTrailingZeros(f'{act.posX:.4f}'))
+                self.ui.dataPos_Y.setText(convert.removeTrailingZeros(f'{act.posY:.4f}'))
+                self.ui.dataPos_Z.setText(convert.removeTrailingZeros(f'{act.posZ:.4f}'))
+                self.ui.dataRot_X.setText(convert.removeTrailingZeros(f'{act.rotX:.4f}'))
+                self.ui.dataRot_Y.setText(convert.removeTrailingZeros(f'{act.rotY:.4f}'))
+                self.ui.dataRot_Z.setText(convert.removeTrailingZeros(f'{act.rotZ:.4f}'))
+                self.ui.dataScale_X.setText(convert.removeTrailingZeros(f'{act.scaleX:.4f}'))
+                self.ui.dataScale_Y.setText(convert.removeTrailingZeros(f'{act.scaleY:.4f}'))
+                self.ui.dataScale_Z.setText(convert.removeTrailingZeros(f'{act.scaleZ:.4f}'))
 
                 for i in range(8):
                     if isinstance(act.parameters[i], bytes):
                         param = str(act.parameters[i], 'utf-8')
                     elif isinstance(act.parameters[i], float):
-                        param = self.removeTrailingZeros(f'{act.parameters[i]:.8f}')
+                        param = convert.removeTrailingZeros(f'{act.parameters[i]:.4f}')
                     else:
                         param = str(act.parameters[i])
                     self.ui.tableWidget.item(i, 0).setText('???')
@@ -348,15 +349,15 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 act = self.room_data.actors[previous]
                 act.type = int(ACTORS[self.ui.dataType.currentText()], 16)
-                act.posX = float(self.ui.dataPos_X.text())
-                act.posY = float(self.ui.dataPos_Y.text())
-                act.posZ = float(self.ui.dataPos_Z.text())
-                act.rotX = float(self.ui.dataRot_X.text())
-                act.rotY = float(self.ui.dataRot_Y.text())
-                act.rotZ = float(self.ui.dataRot_Z.text())
-                act.scaleX = float(self.ui.dataScale_X.text())
-                act.scaleY = float(self.ui.dataScale_Y.text())
-                act.scaleZ = float(self.ui.dataScale_Z.text())
+                act.posX = convert.strToFloat(self.ui.dataPos_X.text())
+                act.posY = convert.strToFloat(self.ui.dataPos_Y.text())
+                act.posZ = convert.strToFloat(self.ui.dataPos_Z.text())
+                act.rotX = convert.strToFloat(self.ui.dataRot_X.text())
+                act.rotY = convert.strToFloat(self.ui.dataRot_Y.text())
+                act.rotZ = convert.strToFloat(self.ui.dataRot_Z.text())
+                act.scaleX = convert.strToFloat(self.ui.dataScale_X.text())
+                act.scaleY = convert.strToFloat(self.ui.dataScale_Y.text())
+                act.scaleZ = convert.strToFloat(self.ui.dataScale_Z.text())
 
                 for i in range(8):
                     v = self.ui.tableWidget.item(i, 1).text()
@@ -364,7 +365,7 @@ class MainWindow(QtWidgets.QMainWindow):
                         act.parameters[i] = int(v)
                     else:
                         try:
-                            exec(f"act.parameters[i] = float(v)")
+                            exec(f"act.parameters[i] = convert.strToFloat(v)")
                         except ValueError:
                             exec(f"act.parameters[i] = bytes(v, 'utf-8')")
                 
@@ -519,30 +520,6 @@ class MainWindow(QtWidgets.QMainWindow):
             if not actor.startswith(('Player', 'null')):
                 self.ui.dataType.addItem(actor)
         self.data_viewed = True
-
-
-    def removeTrailingZeros(self, dec: str) -> str:
-        """Removes trailing zeros in float strings"""
-
-        dec_list = [c for c in dec]
-        dec_list.reverse()
-        dec_list_2 = dec_list.copy()
-        
-        for d in dec_list_2:
-            if d == '0':
-                dec_list.remove(d)
-            else:
-                break
-        
-        dec_str = ''
-        dec_list.reverse()
-        for d in dec_list:
-            dec_str += d
-        
-        if dec_str.endswith('.'):
-            dec_str += '0'
-        
-        return dec_str
 
 
     def showError(self, error_message) -> None:
@@ -740,7 +717,7 @@ class PosLineEdit(QtWidgets.QLineEdit):
 
     def moveTile(self, key) -> None:
         try:
-            pos = float(self.text())
+            pos = convert.strToFloat(self.text())
         except ValueError:
             return
 
