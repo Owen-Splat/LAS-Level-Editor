@@ -1,186 +1,28 @@
+from LevelEditorCore.Tools.FixedHash.fixed_hash import *
+import numpy as np
 import struct
-
-def readBytes(bytes, start, length, endianness='little'):
-	return int.from_bytes(bytes[start : start + length], endianness)
-
-def readFloat(bytes, start, length):
-	return float(struct.unpack('<f', bytes[start : start + length])[0])
-
-def readString(data, start):
-	result = b''
-	index = start
-
-	while index < len(data) and data[index]:
-		result += data[index : index + 1]
-		index += 1
-
-	return result
-
-def hash_string(s):
-    data = s + b"\x00"
-    h = 0
-    i = 0
-    while data[i]:
-        h ^= (data[i] + (h >> 2) + (h << 5)) & 0xFFFFFFFF
-        i += 1
-    return h
-
-
-
-class Entry:
-	def __init__(self, node_index, name, next_offset, data):
-		self.node_index = node_index
-		self.name = name
-		self.next_offset = next_offset
-		self.data = data
-
-
-
-class FixedHash:
-	def __init__(self, data, offset=0):
-		self.magic = readBytes(data, offset + 0x0, 1)
-		self.version = readBytes(data, offset + 0x1, 1)
-		self.num_buckets = readBytes(data, offset + 0x2, 2)
-		self.num_nodes = readBytes(data, offset + 0x4, 2)
-		self.x6 = readBytes(data, offset + 0x6, 2)
-
-		self.buckets = []
-		for i in range(self.num_buckets): # there will be an extra one. I don't really know what this data means but we want to preserve it
-			self.buckets.append(readBytes(data, offset + 0x8 + (i * 4), 4))
-
-		entries_offset = ((offset + 0x8 + 4*(self.num_buckets+1) + 3) & -8) + 8
-		num_entries = readBytes(data, entries_offset - 8, 8) // 0x10
-
-		entry_offsets_offset = entries_offset + (num_entries * 0x10) + 8
-
-		data_section_offset = ((entry_offsets_offset + (4 * num_entries) + 7) & -8) + 8
-
-		names_section_offset = ((data_section_offset + readBytes(data, data_section_offset - 8, 8) + 3) & -4) + 4
-		names_size = readBytes(data, names_section_offset - 4, 4)
-		self.names_section = data[names_section_offset : names_section_offset + names_size]
-
-		self.entries = []
-		for i in range(num_entries):
-			current_offset = entries_offset + (i * 0x10)
-			
-			node_index = readBytes(data, current_offset, 2)
-			
-			next_offset = readBytes(data, current_offset + 8, 4)
-			
-			if names_size:
-				name = readString(data, names_section_offset + readBytes(data, current_offset + 2, 2))
-			else:
-				name = b''
-
-			entry_data_offset = readBytes(data, current_offset + 0xC, 4)
-			
-			if node_index <= 0xFFED:
-				entry_data = FixedHash(data, data_section_offset + entry_data_offset)
-				#print(data[dataSectionOffset + entryDataOffset : dataSectionOffset + entryDataOffset + 32])
-				pass
-			elif node_index >= 0xFFF0:
-				data_size = readBytes(data, data_section_offset + entry_data_offset, 8)
-				
-				entry_data = data[data_section_offset + entry_data_offset + 8 : data_section_offset + entry_data_offset + 8 + data_size]
-			else:
-				raise ValueError('Invalid node index')
-
-			self.entries.append(Entry(node_index, name, next_offset, entry_data))
-
-	def toBinary(self, offset=0):
-		# Returns a bytes object of the fixed hash in binary form
-		intro = b''
-
-		intro += self.magic.to_bytes(1, 'little')
-		intro += self.version.to_bytes(1, 'little')
-		intro += self.num_buckets.to_bytes(2, 'little')
-		intro += self.num_nodes.to_bytes(2, 'little')
-		intro += self.x6.to_bytes(2, 'little')
-
-		for bucket in self.buckets:
-			intro += bucket.to_bytes(4, 'little')
-
-		entries_sect = (len(self.entries) * 0x10).to_bytes(8, 'little')
-		entry_offsets_sect = (len(self.entries) * 0x4).to_bytes(8, 'little')
-		data_sect = b''
-		
-		for i in range(len(self.entries)):
-			entry = self.entries[i]
-
-			entries_sect += entry.node_index.to_bytes(2, 'little')
-			if self.names_section.count(entry.name) and self.names_section != b'':
-				entries_sect += self.names_section.index(entry.name + b'\x00').to_bytes(2, 'little')
-			else:
-				entries_sect += b'\x00\x00'
-			entries_sect += hash_string(entry.name).to_bytes(4, 'little')
-			entries_sect += entry.next_offset.to_bytes(4, 'little')
-			entries_sect += len(data_sect).to_bytes(4, 'little')
-			
-			entry_offsets_sect += (i * 0x10).to_bytes(4, 'little')
-
-			if entry.node_index <= 0xFFED:
-				data_sect += entry.data.toBinary(len(data_sect))
-			elif entry.node_index >= 0xFFF0:
-				data_sect += len(entry.data).to_bytes(8, 'little') + entry.data
-
-				data_sect += b'\x00\x00\x00\x00\x00\x00\x00'
-				data_sect = data_sect[:len(data_sect) & -8]
-			else:
-				raise ValueError('Invalid node index')
-
-		data_sect = len(data_sect).to_bytes(8, 'little') + data_sect
-
-		result = b''
-		result += intro
-
-		while (len(result) + offset) % 8 != 0:
-			result += b'\x00'
-		result += entries_sect
-
-		while (len(result) + offset) % 8 != 0:
-			result += b'\x00'
-		result += entry_offsets_sect
-
-		while (len(result) + offset) % 8 != 0:
-			result += b'\x00'
-		result += data_sect
-
-		while (len(result) + offset) % 4 != 0:
-			result += b'\x00'
-		result += len(self.names_section).to_bytes(4, 'little')
-		result += self.names_section
-
-		return result
-
 
 
 class Actor:
 	def __init__(self, data, names):
-		self.names = names
+		# self.names = names
 		self.visible = True # for the UI
-
 		self.key = readBytes(data, 0x0, 8)
-		self.name = readString(names, readBytes(data, 0x8, 4))
-
+		# self.name = readString(names, readBytes(data, 0x8, 4))
 		self.type = readBytes(data, 0xC, 2)
-		self.xE = readBytes(data, 0xE, 2)
+		# self.xE = readBytes(data, 0xE, 2) # print this out to view it, we might not need to read it
 		self.roomID = readBytes(data, 0x10, 4)
-		self.posX = readFloat(data, 0x14, 4)
-		self.posY = readFloat(data, 0x18, 4)
-		self.posZ = readFloat(data, 0x1C, 4)
-		self.rotX = readFloat(data, 0x20, 4)
-		self.rotY = readFloat(data, 0x24, 4)
-		self.rotZ = readFloat(data, 0x28, 4)
-		self.scaleX = readFloat(data, 0x2C, 4)
-		self.scaleY = readFloat(data, 0x30, 4)
-		self.scaleZ = readFloat(data, 0x34, 4)
+
+		self.position = readVector3(data, 0x14)
+		self.rotation = readVector3(data, 0x20)
+		self.scale = readVector3(data, 0x2C)
 
 		self.parameters = []
 		for i in range(8):
 			param_type = readBytes(data, 0x38 + (0x8 * i) + 0x4, 4)
 
 			if param_type == 0x2:
-				param = readFloat(data, 0x38 + (0x8 * i), 4)
+				param = readFloat(data, 0x38 + (0x8 * i))
 			else:
 				param = readBytes(data, 0x38 + (0x8 * i), 4)
 			
@@ -195,36 +37,33 @@ class Actor:
 			(readBytes(data, 0x7A, 1), readBytes(data, 0x80, 2)),
 			(readBytes(data, 0x7B, 1), readBytes(data, 0x82, 2))
 		]
-		
-		self.relationships = Relationship(data, names)
 
-	def __repr__(self):
-		return f'Actor: {self.name}'
+		self.relationships = Relationship(data, names)
 
 	def pack(self, name_offset):
 		packed = b''
 
 		# only the hex part of the name matters, so we can change the first half to a basic "Actor" to trim down file size a little
-		key_hex = hex(self.key).split('0x')[1].upper()
-		while len(key_hex) != 16:
-			key_hex = "0" + key_hex
-		self.name = bytes(f"Actor-{key_hex}", 'utf-8')
+		id_hex = hex(self.key).split('0x')[1].upper()
+		while len(id_hex) != 16:
+			id_hex = "0" + id_hex
+		self.name = bytes(f"Actor-{id_hex}", 'utf-8')
 		name_repr = self.name + b'\x00'
 
 		packed += self.key.to_bytes(8, 'little')
 		packed += name_offset.to_bytes(4, 'little')
 		packed += self.type.to_bytes(2, 'little')
-		packed += self.xE.to_bytes(2, 'little')
+		packed += (0).to_bytes(2, 'little') # 0xE padding
 		packed += self.roomID.to_bytes(4, 'little')
-		packed += struct.pack('<f', self.posX)
-		packed += struct.pack('<f', self.posY)
-		packed += struct.pack('<f', self.posZ)
-		packed += struct.pack('<f', self.rotX)
-		packed += struct.pack('<f', self.rotY)
-		packed += struct.pack('<f', self.rotZ)
-		packed += struct.pack('<f', self.scaleX)
-		packed += struct.pack('<f', self.scaleY)
-		packed += struct.pack('<f', self.scaleZ)
+		packed += struct.pack('<f', self.position.x)
+		packed += struct.pack('<f', self.position.y)
+		packed += struct.pack('<f', self.position.z)
+		packed += struct.pack('<f', self.rotation.x)
+		packed += struct.pack('<f', self.rotation.y)
+		packed += struct.pack('<f', self.rotation.z)
+		packed += struct.pack('<f', self.scale.x)
+		packed += struct.pack('<f', self.scale.y)
+		packed += struct.pack('<f', self.scale.z)
 
 		for i in range(8):
 			param = self.parameters[i]
@@ -232,7 +71,7 @@ class Actor:
 				packed += (len(name_repr) + name_offset).to_bytes(4, 'little')
 				packed += (4).to_bytes(4, 'little')
 				name_repr += param + b'\x00'
-			elif isinstance(param, float):
+			elif isinstance(param, np.float32):
 				packed += struct.pack('<f', param)
 				packed += (2).to_bytes(4, 'little')
 			else:
@@ -245,17 +84,9 @@ class Actor:
 			switches += self.switches[i][1].to_bytes(2, 'little')
 		packed += switches
 		
-		packed += self.relationships.pack(name_repr, name_offset)
+		packed += self.relationships.pack(name_repr, name_offset, self.name)
 
 		return packed
-
-
-	def display(self):
-		print(f'Name: {self.name}')
-		print(f'Type: {self.type}')
-		print(f'Room ID: {self.roomID}')
-		print(f'Coordinates: {self.posX}, {self.posY}, {self.posZ}')
-		print(f'Parameters: {self.parameters}')
 
 
 
@@ -263,15 +94,15 @@ class Room:
 	def __init__(self, data):
 		self.fixed_hash = FixedHash(data)
 
-		# self.points = []
-		# point_entry = [e for e in self.fixed_hash.entries if e.name == b'point'][0]
-		# for entry in point_entry.data.entries:
-		# 	self.points.append(Point(entry.data))
+		self.points = []
+		point_entry = [e for e in self.fixed_hash.entries if e.name == b'point'][0]
+		for entry in point_entry.data.entries:
+			self.points.append(Point(entry.data))
 		
-		# self.rails = []
-		# rail_entry = [e for e in self.fixed_hash.entries if e.name == b'rail'][0]
-		# for entry in rail_entry.data.entries:
-		# 	self.rails.append(Rail(data=entry.data, names=self.fixed_hash.names_section))
+		self.rails = []
+		rail_entry = [e for e in self.fixed_hash.entries if e.name == b'rail'][0]
+		for entry in rail_entry.data.entries:
+			self.rails.append(Rail(data=entry.data))
 
 		self.actors = []
 		actor_entry = [e for e in self.fixed_hash.entries if e.name == b'actor'][0]
@@ -283,28 +114,30 @@ class Room:
 			self.grid = Grid(grid_entry)
 		except IndexError:
 			self.grid = None
-	
+
 
 	def repack(self):
 		new_names = b''
 
 		for entry in self.fixed_hash.entries:
-			# if entry.name == b'point':
-			# 	entry.data.entries = []
-			# 	for point in self.points:
-			# 		# Create a new point entry for actors to use
-			# 		entry.data.entries.append(Entry(0xFFF3, b'', 0xFFFFFFFF, point.pack()))
-			
-			# if entry.name == b'rail':
-			# 	entry.data.entries = []
-			# 	for rail in self.rails:
-			# 		# Create a new rail entry to reference point indexes per rail
-			# 		entry.data.entries.append(Entry(0xFFF2, b'', 0xFFFFFFFF, rail.pack(len(new_names))))
+			if entry.name == b'point':
+				entry.data.entries = []
+				for point in self.points:
+					# Create a new point entry for actors to use
+					entry.data.entries.append(Entry(0xFFF3, b'', 0xFFFFFFFF, point.pack()))
 
-			# 		for param in rail.xC:
-			# 			if isinstance(param, bytes):
-			# 				new_names += param + b'\x00'
-			
+			if entry.name == b'rail':
+				rail = Rail(data=None, len_points=len(self.points))
+				entry.data.entries = []
+				entry.data.entries.append(Entry(0xFFF2, b'', 0xFFFFFFFF, rail.pack()))
+				# for rail in self.rails:
+				# 	# Create a new rail entry to reference point indexes per rail
+				# 	entry.data.entries.append(Entry(0xFFF2, b'', 0xFFFFFFFF, rail.pack(len(new_names))))
+
+				# 	# for param in rail.xC:
+				# 	# 	if isinstance(param, bytes):
+				# 	# 		new_names += param + b'\x00'
+
 			if entry.name == b'actor':
 				entry.data.entries = []
 				for actor in self.actors:
@@ -350,14 +183,16 @@ class Room:
 
 class Relationship:
 	def __init__(self, data, names):
-		self.is_enemy = readBytes(data, 0x84, 1)
-		self.check_kills = readBytes(data, 0x85, 1)
-		self.is_chamber_enemy = readBytes(data, 0x86, 1)
+		# no need to bother reading these, we will determine these when repacking
+		# self.is_enemy = readBytes(data, 0x84, 1)
+		# self.check_kills = readBytes(data, 0x85, 1)
+		# self.is_chamber_enemy = readBytes(data, 0x86, 1)
+
 		self.num_entries_1 = readBytes(data, 0x87, 1) # this is not a mistake, group sizes are defined in the order 1, 3, 2
 		self.num_entries_3 = readBytes(data, 0x88, 1)
 		self.num_entries_2 = readBytes(data, 0x89, 1)
 
-		self.null = data[0x8A:0x90]
+		# self.null = data[0x8A:0x90] # always null bytes, no need to read this and will manually add them when repacking
 
 		self.section_1 = []
 		self.section_2 = []
@@ -373,7 +208,7 @@ class Relationship:
 				param_type = readBytes(data, pos + (0x8 * b) + 0x4, 4)
 
 				if param_type == 0x2:
-					param = readFloat(data, pos + (0x8 * b), 4)
+					param = readFloat(data, pos + (0x8 * b))
 				else:
 					param = readBytes(data, pos + (0x8 * b), 4)
 				
@@ -396,7 +231,7 @@ class Relationship:
 				param_type = readBytes(data, pos + (0x8 * b) + 0x4, 4)
 
 				if param_type == 0x2:
-					param = readFloat(data, pos + (0x8 * b), 4)
+					param = readFloat(data, pos + (0x8 * b))
 				else:
 					param = readBytes(data, pos + (0x8 * b), 4)
 				
@@ -418,15 +253,19 @@ class Relationship:
 			self.section_3.append(id)
 	
 
-	def pack(self, name_repr, name_offset):
+	def pack(self, name_repr, name_offset, actor_name: str):
 		packed = b''
-		packed += self.is_enemy.to_bytes(1, 'little')
-		packed += self.check_kills.to_bytes(1, 'little')
-		packed += self.is_chamber_enemy.to_bytes(1, 'little')
+		is_enemy = 1 if actor_name.startswith(b'Enemy') else 0
+		check_kills = 1 if actor_name.endswith(b'HolocaustChecker') else 0
+		is_chamber_enemy = 0 # cant see any purpose for this, so leave as 0
+		packed += is_enemy.to_bytes(1, 'little')
+		packed += check_kills.to_bytes(1, 'little')
+		packed += is_chamber_enemy.to_bytes(1, 'little')
 		packed += self.num_entries_1.to_bytes(1, 'little')
 		packed += self.num_entries_3.to_bytes(1, 'little')
 		packed += self.num_entries_2.to_bytes(1, 'little')
-		packed += self.null
+		for i in range(6):
+			packed += b'\x00'
 
 		for i in range(self.num_entries_1):
 			param1 = self.section_1[i][0][0]
@@ -437,7 +276,7 @@ class Relationship:
 				packed += (len(name_repr) + name_offset).to_bytes(4, 'little')
 				packed += (4).to_bytes(4, 'little')
 				name_repr += param1 + b'\x00'
-			elif isinstance(param1, float):
+			elif isinstance(param1, np.float32):
 				packed += struct.pack('<f', param1)
 				packed += (2).to_bytes(4, 'little')
 			else:
@@ -448,7 +287,7 @@ class Relationship:
 				packed += (len(name_repr) + name_offset).to_bytes(4, 'little')
 				packed += (4).to_bytes(4, 'little')
 				name_repr += param2 + b'\x00'
-			elif isinstance(param2, float):
+			elif isinstance(param2, np.float32):
 				packed += struct.pack('<f', param2)
 				packed += (2).to_bytes(4, 'little')
 			else:
@@ -467,7 +306,7 @@ class Relationship:
 				packed += (len(name_repr) + name_offset).to_bytes(4, 'little')
 				packed += (4).to_bytes(4, 'little')
 				name_repr += param1 + b'\x00'
-			elif isinstance(param1, float):
+			elif isinstance(param1, np.float32):
 				packed += struct.pack('<f', param1)
 				packed += (2).to_bytes(4, 'little')
 			else:
@@ -478,7 +317,7 @@ class Relationship:
 				packed += (len(name_repr) + name_offset).to_bytes(4, 'little')
 				packed += (4).to_bytes(4, 'little')
 				name_repr += param2 + b'\x00'
-			elif isinstance(param2, float):
+			elif isinstance(param2, np.float32):
 				packed += struct.pack('<f', param2)
 				packed += (2).to_bytes(4, 'little')
 			else:
@@ -495,85 +334,92 @@ class Relationship:
 
 
 
-# # EXPERIMENTAL POINT AND RAIL SECTIONS
-# class Point:
-# 	def __init__(self, data):
-# 			self.posX = readFloat(data, 0x0, 4)
-# 			self.posY = readFloat(data, 0x4, 4)
-# 			self.posZ = readFloat(data, 0x8, 4)
-# 			self.xC = data[0xC:]
-	
-# 	def pack(self):
-# 		packed = b''
-# 		packed += struct.pack('<f', self.posX)
-# 		packed += struct.pack('<f', self.posY)
-# 		packed += struct.pack('<f', self.posZ)
-# 		packed += self.xC
+# EXPERIMENTAL POINT AND RAIL SECTIONS
+class Point(Vector3):
+	def __init__(self, data):
+		vector = readVector3(data, 0x0)
+		self.x = vector.x
+		self.y = vector.y
+		self.z = vector.z
 
-# 		return packed
+	def pack(self):
+		packed = b''
+		packed += struct.pack('<f', self.x)
+		packed += struct.pack('<f', self.y)
+		packed += struct.pack('<f', self.z)
+		for i in range(0xC):
+			packed += b'\xFF'
+		return packed
 
 
 
-# class Rail:
-# 	def __init__(self, data=None, points=None, names=None):
-# 		if data is not None:
-# 			self.x0 = data[0x0:0xC]
+class Rail:
+	def __init__(self, data=None, len_points=None):
+		if data is not None:
 
-# 			self.xC = []
-# 			for i in range(4):
-# 				paramType = readBytes(data, 0xC + (0x8 * i) + 0x4, 4)
+			# always blocks of [25, 0xFFFFFF04] for some reason, so we won't bother parsing this
+			# self.xC = []
+			# for i in range(4):
+			# 	paramType = readBytes(data, 0xC + (0x8 * i) + 0x4, 4)
 
-# 				if paramType == 0x2:
-# 					param = readFloat(data, 0xC + (0x8 * i), 4)
-# 				else:
-# 					param = readBytes(data, 0xC + (0x8 * i), 4)
+			# 	if paramType == 0x2:
+			# 		param = readFloat(data, 0xC + (0x8 * i))
+			# 	else:
+			# 		param = readBytes(data, 0xC + (0x8 * i), 4)
 				
-# 				if paramType == 0xFFFFFF04:
-# 					self.xC.append(readString(names, param))
-# 				else:
-# 					self.xC.append(param)
-			
-# 			self.num_entries = readBytes(data, 0x2C, 2)
-# 			self.num_indexes = readBytes(data, 0x2E, 2)
+			# 	if paramType == 0xFFFFFF04:
+			# 		self.xC.append(readString(names, param))
+			# 	else:
+			# 		self.xC.append(param)
 
-# 			self.points = []
-# 			for i in range(self.num_entries):
-# 				self.points.append(readBytes(data, (0x30 + (0x2 * i)), 2))
+			self.xC = [25, 25, 25, 25]
+			self.num_entries = readBytes(data, 0x2C, 2)
+			self.num_indexes = readBytes(data, 0x2E, 2)
+
+			self.points = []
+			for i in range(self.num_entries):
+				self.points.append(readBytes(data, (0x30 + (0x2 * i)), 2))
 		
-# 		else:
-# 			self.x0 = b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"
-# 			self.xC = [25, 25, 25, 25]
-# 			self.num_entries = len(points)
-# 			self.num_indexes = 0x1
-# 			self.points = points
+		else:
+			self.xC = [25, 25, 25, 25]
+			self.num_entries = len_points
+			self.num_indexes = 0x1
+			self.points = []
+			for i in range(len_points):
+				self.points.append(i)
 
 
-# 	def pack(self, nameOffset):
-# 		packed = b''
-# 		packed += self.x0
+	def pack(self):
+		"""Pack all points into a single rail"""
+
+		packed = b''
+		for i in range(0xC):
+			packed += b'\x00'
 		
-# 		nameRepr = b'' # + b'\x00'
+		# nameRepr = b'' # + b'\x00'
 
-# 		for i in range(4):
-# 			param = self.xC[i]
-# 			if isinstance(param, bytes):
-# 				packed += (len(nameRepr) + nameOffset).to_bytes(4, 'little')
-# 				packed += (0xFFFFFF04).to_bytes(4, 'little')
-# 				nameRepr += param + b'\x00'
-# 			elif isinstance(param, np.float32):
-# 				packed += struct.pack('<f', param)
-# 				packed += (2).to_bytes(4, 'little')
-# 			else:
-# 				packed += param.to_bytes(4, 'little')
-# 				packed += (3).to_bytes(4, 'little')
+		for i in range(4):
+			param = self.xC[i]
+			packed += param.to_bytes(4, 'little')
+			packed += (0xFFFFFF04).to_bytes(4, 'little')
+			# if isinstance(param, bytes):
+			# 	packed += (len(nameRepr) + nameOffset).to_bytes(4, 'little')
+			# 	packed += (0xFFFFFF04).to_bytes(4, 'little')
+			# 	nameRepr += param + b'\x00'
+			# elif isinstance(param, np.float32):
+			# 	packed += struct.pack('<f', param)
+			# 	packed += (2).to_bytes(4, 'little')
+			# else:
+			# 	packed += param.to_bytes(4, 'little')
+			# 	packed += (3).to_bytes(4, 'little')
 
-# 		packed += self.num_entries.to_bytes(2, 'little')
-# 		packed += self.num_indexes.to_bytes(2, 'little')
+		packed += self.num_entries.to_bytes(2, 'little')
+		packed += self.num_indexes.to_bytes(2, 'little')
 
-# 		for i in range(self.num_entries):
-# 			packed += self.points[i].to_bytes(2, 'little')
+		for i in range(self.num_entries):
+			packed += self.points[i].to_bytes(2, 'little')
 		
-# 		return packed
+		return packed
 
 
 
@@ -669,7 +515,7 @@ class Grid:
 			# self.unknown = data[0x4:0x8] # matches the first 4 bytes
 
 			self.chain_index = readBytes(data, 0x8, 4)
-			self.elevation = readFloat(data, 0xC, 4)
+			self.elevation = readFloat(data, 0xC)
 		
 
 		def pack(self):
@@ -707,9 +553,9 @@ class Grid:
 			self.room_height = readBytes(data, 0x0, 2) # how many tiles on the Z-axis: 8 for 3D rooms, 2 for 2D rooms
 			self.room_width = readBytes(data, 0x2, 2) # how many tiles on the X-axis, always 10
 			self.room_type = '3D' if self.room_height == 8 else '2D'
-			self.tile_size = readFloat(data, 0x4, 4)
-			self.x_coord = readFloat(data, 0x8, 4)
-			self.z_coord = readFloat(data, 0xC, 4)
+			self.tile_size = readFloat(data, 0x4)
+			self.x_coord = readFloat(data, 0x8)
+			self.z_coord = readFloat(data, 0xC)
 		
 		def pack(self):
 			packed = b''

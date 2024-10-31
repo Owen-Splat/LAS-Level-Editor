@@ -2,33 +2,9 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from LevelEditorUI.UI.ui_form import Ui_MainWindow
 import LevelEditorCore.Tools.FixedHash.leb as leb
 import LevelEditorCore.Tools.conversions as convert
-import copy, os, sys, yaml, random
-
-if getattr(sys, "frozen", False):
-    RUNNING_FROM_SOURCE = False
-    root_path = os.path.dirname(sys.executable)
-else:
-    RUNNING_FROM_SOURCE = True
-    root_path = os.path.dirname(os.path.dirname(__file__))
-
-data_folder = 'LevelEditorCore/Data' if RUNNING_FROM_SOURCE else 'lib/LevelEditorCore/Data'
-DATA_PATH = os.path.join(root_path, data_folder)
-with open(os.path.join(DATA_PATH, 'actors.yml'), 'r') as f:
-    actor_list = yaml.safe_load(f)
-with open(os.path.join(DATA_PATH, 'actor_parameters.yml'), 'r') as f:
-    ACTOR_PARAMETERS = yaml.safe_load(f)
-
-ACTORS = {}
-for i, actor in enumerate(actor_list):
-    ACTORS[actor['name']] = hex(i)
-ACTOR_IDS = list(ACTORS.values())
-ACTOR_NAMES = list(ACTORS.keys())
-REQUIRED_ACTORS = [0x185] # MapStatic
-
-icons_folder = 'LevelEditorUi/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons'
-ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
-ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
-TILE_ICONS_PATH = os.path.join(root_path, icons_folder, 'Tiles')
+from LevelEditorCore.Data.data import *
+import copy, os, random
+import numpy as np
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -261,20 +237,20 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.ID_lineEdit.setText(str(act.key))
                 self.ui.dataType.setCurrentIndex(
                     self.ui.dataType.findText(full_name, QtCore.Qt.MatchExactly))
-                self.ui.dataPos_X.setText(convert.removeTrailingZeros(f'{act.posX:.4f}'))
-                self.ui.dataPos_Y.setText(convert.removeTrailingZeros(f'{act.posY:.4f}'))
-                self.ui.dataPos_Z.setText(convert.removeTrailingZeros(f'{act.posZ:.4f}'))
-                self.ui.dataRot_X.setText(convert.removeTrailingZeros(f'{act.rotX:.4f}'))
-                self.ui.dataRot_Y.setText(convert.removeTrailingZeros(f'{act.rotY:.4f}'))
-                self.ui.dataRot_Z.setText(convert.removeTrailingZeros(f'{act.rotZ:.4f}'))
-                self.ui.dataScale_X.setText(convert.removeTrailingZeros(f'{act.scaleX:.4f}'))
-                self.ui.dataScale_Y.setText(convert.removeTrailingZeros(f'{act.scaleY:.4f}'))
-                self.ui.dataScale_Z.setText(convert.removeTrailingZeros(f'{act.scaleZ:.4f}'))
+                self.ui.dataPos_X.setText(convert.removeTrailingZeros(f'{act.position.x:.4f}'))
+                self.ui.dataPos_Y.setText(convert.removeTrailingZeros(f'{act.position.y:.4f}'))
+                self.ui.dataPos_Z.setText(convert.removeTrailingZeros(f'{act.position.z:.4f}'))
+                self.ui.dataRot_X.setText(convert.removeTrailingZeros(f'{act.rotation.x:.4f}'))
+                self.ui.dataRot_Y.setText(convert.removeTrailingZeros(f'{act.rotation.y:.4f}'))
+                self.ui.dataRot_Z.setText(convert.removeTrailingZeros(f'{act.rotation.z:.4f}'))
+                self.ui.dataScale_X.setText(convert.removeTrailingZeros(f'{act.scale.x:.4f}'))
+                self.ui.dataScale_Y.setText(convert.removeTrailingZeros(f'{act.scale.y:.4f}'))
+                self.ui.dataScale_Z.setText(convert.removeTrailingZeros(f'{act.scale.z:.4f}'))
 
                 for i in range(8):
                     if isinstance(act.parameters[i], bytes):
                         param = str(act.parameters[i], 'utf-8')
-                    elif isinstance(act.parameters[i], float):
+                    elif isinstance(act.parameters[i], np.float32):
                         param = convert.removeTrailingZeros(f'{act.parameters[i]:.4f}')
                     else:
                         param = str(act.parameters[i])
@@ -349,15 +325,15 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 act = self.room_data.actors[previous]
                 act.type = int(ACTORS[self.ui.dataType.currentText()], 16)
-                act.posX = convert.strToFloat(self.ui.dataPos_X.text())
-                act.posY = convert.strToFloat(self.ui.dataPos_Y.text())
-                act.posZ = convert.strToFloat(self.ui.dataPos_Z.text())
-                act.rotX = convert.strToFloat(self.ui.dataRot_X.text())
-                act.rotY = convert.strToFloat(self.ui.dataRot_Y.text())
-                act.rotZ = convert.strToFloat(self.ui.dataRot_Z.text())
-                act.scaleX = convert.strToFloat(self.ui.dataScale_X.text())
-                act.scaleY = convert.strToFloat(self.ui.dataScale_Y.text())
-                act.scaleZ = convert.strToFloat(self.ui.dataScale_Z.text())
+                act.position.x = convert.strToFloat(self.ui.dataPos_X.text())
+                act.position.y = convert.strToFloat(self.ui.dataPos_Y.text())
+                act.position.z = convert.strToFloat(self.ui.dataPos_Z.text())
+                act.rotation.x = convert.strToFloat(self.ui.dataRot_X.text())
+                act.rotation.y = convert.strToFloat(self.ui.dataRot_Y.text())
+                act.rotation.z = convert.strToFloat(self.ui.dataRot_Z.text())
+                act.scale.x = convert.strToFloat(self.ui.dataScale_X.text())
+                act.scale.y = convert.strToFloat(self.ui.dataScale_Y.text())
+                act.scale.z = convert.strToFloat(self.ui.dataScale_Z.text())
 
                 for i in range(8):
                     v = self.ui.tableWidget.item(i, 1).text()
@@ -609,14 +585,15 @@ class MainWindow(QtWidgets.QMainWindow):
             # pix = pix.transformed(trans)
 
             # define geometry
-            spr_width = round(self.tile_pixel_size * act.scaleX)
-            spr_height = round(self.tile_pixel_size * act.scaleZ)
+            spr_width = round(self.tile_pixel_size * act.scale.x)
+            spr_height = round(self.tile_pixel_size * act.scale.z)
             unit_pixel_ratio = self.tile_pixel_size / self.tile_unit_size
-            posX = round(((act.posX - self.topleft[0]) * unit_pixel_ratio) - (spr_width / 2))
+            posX = round(((act.position.x - self.topleft[0]) * unit_pixel_ratio) - (spr_width / 2))
             if self.room_data.grid.info.room_type == '3D':
-                posY = round(((act.posZ - self.topleft[1]) * unit_pixel_ratio) - (spr_height / 2))
+                posY = round(((act.position.z - self.topleft[1]) * unit_pixel_ratio) - (spr_height / 2))
             else:
-                posY = round((12 - act.posY) * unit_pixel_ratio)
+                spr_height = round(self.tile_pixel_size * act.scale.y)
+                posY = round((12 - act.position.y) * unit_pixel_ratio)
             sprite.setGeometry(posX, posY, spr_width, spr_height)
 
             # we scale the pixmap instead of letting the QLabel do it, this way the pixel art is not blurred and stays crisp

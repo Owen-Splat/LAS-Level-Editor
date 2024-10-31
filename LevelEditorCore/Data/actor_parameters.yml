@@ -13,7 +13,7 @@ ObjCaveRock:
   - South Push
   - North Push
 ObjCrystalSwitch:
-  - State (0=Blue, 1=Orange)
+  - State (0=Orange, 1=Blue)
 ObjSquareBlock:
   - East Push
   - West Push
@@ -22,3 +22,9 @@ ObjSquareBlock:
 ObjTreasureBox:
   - Appear Flag (Keep as Switch0)
   - Chest Contents
+ItemHeartPiece:
+  - Index
+ItemSecretSeashell:
+  - Index
+MapStatic:
+  - Model Name

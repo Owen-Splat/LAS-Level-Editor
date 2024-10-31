@@ -1,5 +1,14 @@
+import numpy as np
+
+
 def removeTrailingZeros(dec: str) -> str:
     """Removes trailing zeros in float strings"""
+
+    if not dec.isdigit():
+        try:
+            test = float(dec)
+        except TypeError:
+            return dec
 
     dec_list = [c for c in dec]
     dec_list.reverse()
@@ -22,20 +31,26 @@ def removeTrailingZeros(dec: str) -> str:
     return dec_str
 
 
-def strToFloat(value: str) -> float:
+def strToFloat(value: str) -> (str | np.float32):
     """Converts user inputed text into a float, removing garbage characters in the process
 
     This also parses commas as decimals in case of typo. If there are multiple, only read the top-most level decimal
     
     May eventually update to perform basic math operations"""
 
+    if not value.isdigit():
+        try:
+            test = float(value)
+        except TypeError:
+            return value
+
     value = ''.join([c for c in value if c in ('.', ',', '+', '-') or c.isdecimal()])
     if ',' not in value and '.' not in value:
-        return float(value)
+        return np.float32(value)
 
     value = value.replace(',', '.')
     value = value.split('.')
     decimals = value[-1]
     value = [v for v in value if v != decimals]
     value = ''.join(value)
-    return float(removeTrailingZeros(f'{value}.{decimals}'))
+    return np.float32(removeTrailingZeros(f'{value}.{decimals}'))

@@ -1,5 +1,11 @@
-RELEASE v0.4:
+RELEASE v1.0:
 
+Bugs To Fix:
+- sometimes an actor's position gets weird when using the arrow keys and it loops before being able to be brought back into the viewport
+
+- fix parameter table saving (might be fixed, need to double check)
+
+Features:
 - make rotation visible in some way
 
 - remove text at the bottom of the room view, have a list of actors & their sprites to drag into the room
@@ -10,9 +16,14 @@ RELEASE v0.4:
 
 - add basic lvb support for things like allowing companions in custom dungeons, or changing the music
 
+UI REWORK:
+- add romfs and output paths
+
+- create project manager, opening an existing project will open everything
+
+- instead of selecting files, have a grid view of every area to view all rooms at once and select individual rooms to edit
 
 FUTURE:
-
 - rework GUI to be in the same layout, but scalable
 
 - add support for editing gsheet
