@@ -24,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tile_unit_size = 1.5 # the tile size by in-game units
         self.tile_pixel_size = 45 # how many pixels make up a tile
-        self.snap_margin = self.tile_unit_size / 2 # grid snap margin, by default it snaps to 1/2 of a tile
+        self.snap_margin = self.tile_unit_size # grid snap margin, by default it snaps to a tile
 
         # general widget signals (signals connect events to functions)
         self.ui.actionOpen.triggered.connect(self.fileOpen)
@@ -700,9 +700,9 @@ class PosLineEdit(QtWidgets.QLineEdit):
 
         dirs = self.DIRECTIONS[self.objectName()[-1]]
         if key == dirs[0]:
-            amount = -1.5
+            amount = -self.window().snap_margin
         elif key == dirs[1]:
-            amount = 1.5
+            amount = self.window().snap_margin
         else:
             return
 

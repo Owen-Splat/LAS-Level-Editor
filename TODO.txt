@@ -1,8 +1,6 @@
 RELEASE v1.0:
 
 Bugs To Fix:
-- sometimes an actor's position gets weird when using the arrow keys and it loops before being able to be brought back into the viewport
-
 - fix parameter table saving (might be fixed, need to double check)
 
 Features:

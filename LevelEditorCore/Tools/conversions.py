@@ -31,7 +31,7 @@ def removeTrailingZeros(dec: str) -> str:
     return dec_str
 
 
-def strToFloat(value: str) -> (str | np.float32):
+def strToFloat(value: str) -> np.float32:
     """Converts user inputed text into a float, removing garbage characters in the process
 
     This also parses commas as decimals in case of typo. If there are multiple, only read the top-most level decimal
@@ -42,7 +42,7 @@ def strToFloat(value: str) -> (str | np.float32):
         try:
             test = float(value)
         except TypeError:
-            return value
+            raise ValueError
 
     value = ''.join([c for c in value if c in ('.', ',', '+', '-') or c.isdecimal()])
     if ',' not in value and '.' not in value:
