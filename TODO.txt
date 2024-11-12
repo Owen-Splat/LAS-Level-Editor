@@ -1,8 +1,5 @@
 RELEASE v1.0:
 
-Bugs To Fix:
-- fix parameter table saving (might be fixed, need to double check)
-
 Features:
 - make rotation visible in some way
 
@@ -15,11 +12,9 @@ Features:
 - add basic lvb support for things like allowing companions in custom dungeons, or changing the music
 
 UI REWORK:
-- add romfs and output paths
-
 - create project manager, opening an existing project will open everything
 
-- instead of selecting files, have a grid view of every area to view all rooms at once and select individual rooms to edit
+- instead of selecting files, have a grid view of every area to view all rooms at once and select/focus individual rooms
 
 FUTURE:
 - rework GUI to be in the same layout, but scalable
@@ -27,3 +22,5 @@ FUTURE:
 - add support for editing gsheet
 
 - make and include a modified event editor, specific to LAS and with easy to choose events & default parameters
+
+- create integrated ASM patch system

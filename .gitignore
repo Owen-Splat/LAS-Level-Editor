@@ -2,5 +2,5 @@ __pycache__
 .qt_for_python
 /build
 /Icons
-run.bat
+settings.txt
 test.py

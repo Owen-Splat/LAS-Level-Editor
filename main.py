@@ -12,7 +12,7 @@ import signal
 signal.signal(signal.SIGINT, interruptHandler)
 
 app = QtWidgets.QApplication([])
-app.setStyle('cleanlooks')
+app.setStyle('windowsvista')
 
 timer = QtCore.QTimer()
 timer.start(100)
