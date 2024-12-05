@@ -1,7 +1,8 @@
 from PySide6 import QtCore, QtWidgets, QtGui
-from LevelEditorUI.UI.ui_form import Ui_MainWindow
-from LevelEditorUI.path_window import PathsWindow
-from LevelEditorUI.custom_widgets import *
+from LevelEditorUI.Windows.MainWindow.UI.ui_form import Ui_MainWindow
+from LevelEditorUI.Windows.PathWindow.path_window import PathsWindow
+from LevelEditorUI.Windows.LevelWindow.level_window import *
+from LevelEditorUI.Windows.MainWindow.room_widgets import *
 import LevelEditorCore.Tools.FixedHash.leb as leb
 import LevelEditorCore.Tools.conversions as convert
 from LevelEditorCore.Data.data import *
@@ -30,7 +31,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.snap_margin = self.tile_unit_size / self.user_snap_margin  # grid snap margin, by default it snaps to 1/2 a tile
 
         # menu bar signals (signals connect events to functions)
-        self.ui.actionOpen.triggered.connect(self.fileOpen)
+        self.ui.actionOpen.triggered.connect(self.levelSelectOpen)
         self.ui.actionSave.triggered.connect(self.fileSave)
         self.ui.actionSaveAs.triggered.connect(self.fileSaveAs)
         self.ui.actionClose.triggered.connect(self.fileClose)
@@ -89,6 +90,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.prepareSettings()
 
 
+    def levelSelectOpen(self) -> None:
+        """Opens the level selection window"""
+
+        l_window = LevelSelectionWindow(self, self.settings['romfs_path'], self.settings['output_path'])
+        l_window.setWindowTitle(self.app_name)
+        l_window.setStyleSheet(LIGHT_STYLE)
+        l_window.selection.connect(self.showLevel)
+        l_window.exec()
+
+
+    def showLevel(self, level=str) -> None:
+        """Opens the level info window. This will contain properties to edit as well as a room view/selection
+        
+        This will need to check for files in the mod output directory and update accordingly"""
+
+        print(level)
+
+
+    # old individual fileOpen method, now we will create our own level selection window
     def fileOpen(self, dragged_file=None) -> None:
         if dragged_file:
             path = dragged_file

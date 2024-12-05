@@ -72,18 +72,14 @@ class PathsWindow(QtWidgets.QDialog):
             out_path = self.out_line.text()
             color = 'green' if os.path.exists(out_path) else 'red'
             self.out_line.setStyleSheet(f'background-color: {color}')
-            out_valid = True
+            if color == 'green':
+                out_valid = True
 
         if rom_valid and out_valid:
             self.paths_valid = True
 
 
-    # def closeEvent(self, event):
-    #     event.accept()
-
-
     def done(self, result):
-        print('done()')
         self.give_settings.emit((self.paths_valid, {
             'romfs_path': self.rom_line.text(),
             'output_path': self.out_line.text()}))

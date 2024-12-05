@@ -1,3 +1,4 @@
+from PySide6.QtGui import QIcon
 import os, sys, yaml
 
 if getattr(sys, "frozen", False):
@@ -35,12 +36,36 @@ ACTOR_IDS = list(ACTORS.values())
 ACTOR_NAMES = list(ACTORS.keys())
 REQUIRED_ACTORS = [0x185] # MapStatic
 
-icons_folder = 'LevelEditorUi/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Icons'
+icons_folder = 'LevelEditorUI/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUI/Icons'
 ACTOR_ICONS_PATH = os.path.join(root_path, icons_folder, 'Actors')
 ACTOR_ICONS = [f.split('.')[0] for f in os.listdir(ACTOR_ICONS_PATH) if f.endswith('.png')]
 TILE_ICONS_PATH = os.path.join(root_path, icons_folder, 'Tiles')
 
-resource_folder = 'LevelEditorUi/Resources' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Resources'
-RESOURCE_PATH = os.path.join(root_path, resource_folder)
-with open(os.path.join(RESOURCE_PATH, 'light_theme.txt'), 'r') as f:
-    LIGHT_STYLE = f.read()
+# resource_folder = 'LevelEditorUi/Resources' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUi/Resources'
+# RESOURCE_PATH = os.path.join(root_path, resource_folder)
+# with open(os.path.join(RESOURCE_PATH, 'Stylesheets/light_theme.txt'), 'r') as f:
+#     LIGHT_STYLE = f.read()
+# with open(os.path.join(RESOURCE_PATH, 'Stylesheets/sidebar.txt'), 'r') as f:
+#     SIDEBAR_THEME = f.read()
+# with open(os.path.join(RESOURCE_PATH, 'Stylesheets/main_view.txt'), 'r') as f:
+#     MAIN_THEME = f.read()
+
+# WINDOW ICONS
+ICONS_PATH = 'LevelEditorUI/Window/Icons' if RUNNING_FROM_SOURCE else 'lib/LevelEditorUI/Window/Icons'
+
+MAIN_ICON = ICONS_PATH + '/icon.png'
+
+MENU_ICON = ICONS_PATH + '/cil-menu.png'
+HOME_ICON = ICONS_PATH + '/cil-home.png'
+LOCATION_ICON = ICONS_PATH + '/cil-location-pin.png'
+PROPERTIES_ICON = ICONS_PATH + '/cil-settings.png'
+ROOM_ICON = ICONS_PATH + '/cil-rectangle.png'
+DATASHEET_ICON = ICONS_PATH + '/cil-notes.png'
+EVENTS_ICON = ICONS_PATH + '/cil-task.png'
+CODE_ICON = ICONS_PATH + '/cil-code.png'
+
+RESTORE_ICON = ICONS_PATH + '/cil-window-restore.png'
+MAXIMIZE_ICON = ICONS_PATH + '/cil-window-maximize.png'
+MINIMIZE_ICON = ICONS_PATH + '/cil-window-minimize.png'
+CLOSE_ICON = ICONS_PATH + '/cil-x.png'
+SIZE_ICON = ICONS_PATH + '/cil-size-grip.png'

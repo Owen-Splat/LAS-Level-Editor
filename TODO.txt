@@ -1,26 +1,43 @@
 RELEASE v1.0:
 
-Features:
-- make rotation visible in some way
+- create scale & snap icons, remove bulk of icons pack
 
-- remove text at the bottom of the room view, have a list of actors & their sprites to drag into the room
+- create room selection in the location tab
+
+- add basic lvb support for things like allowing companions in custom dungeons, or changing the music
+
+- level properties tab that contains the above lvb properties
+
+- fix repeated namespace issue in the ui file that qt designer keeps making
+
+Features:
+- make rotation & scale visible
+
+- remove text at the bottom of the room view, have a list of actors & icons to drag into the room
 
 - remove hide & grid checkboxes, integrate them into standard icon buttons
 
 - add icon buttons to change controls from position, rotation, scale
 
-- add basic lvb support for things like allowing companions in custom dungeons, or changing the music
 
 UI REWORK:
-- create project manager, opening an existing project will open everything
+- project manager
+- level selection
+- level properties - music, level flags, room selection
+- room view - actor edits
+- datasheet editor
+- event editor
+- asm patches
 
-- instead of selecting files, have a grid view of every area to view all rooms at once and select/focus individual rooms
 
 FUTURE:
-- rework GUI to be in the same layout, but scalable
-
 - add support for editing gsheet
 
 - make and include a modified event editor, specific to LAS and with easy to choose events & default parameters
 
 - create integrated ASM patch system
+
+- make app as user-friendly as possible
+    - Parameters for each actor should be defined
+    - Actor links should be by actor key/ID instead of index
+    - Rail/Point links should just be represented as dots that the user can add/delete & drag around
