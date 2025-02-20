@@ -93,8 +93,10 @@ class MainWindow(QtWidgets.QMainWindow):
         if dragged_file:
             path = dragged_file
         else:
-            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File',
-                os.path.dirname(self.file) if self.file_loaded else '', "Room files (*.leb)")[0]
+            dir = f"{self.settings['romfs_path']}/region_common/level"
+            if self.file_loaded:
+                dir = os.path.dirname(self.file)
+            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', dir, "Room files (*.leb)")[0]
             if not path.endswith(".leb"):
                 return
         
@@ -110,12 +112,6 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.setWindowTitle(f"{self.app_name} - {os.path.basename(path)}")
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
-
-            # draw out the room based on tile data
-            if self.room_data.grid.info.room_type == '3D':
-                self.draw3DRoomLayout()
-            else:
-                self.draw2DRoomLayout()
 
             self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
@@ -575,6 +571,12 @@ class MainWindow(QtWidgets.QMainWindow):
             act.deleteLater()
         self.actor_sprites = []
 
+        # draw out the room based on tile data
+        if self.room_data.grid.info.room_type == '3D':
+            self.draw3DRoomLayout()
+        else:
+            self.draw2DRoomLayout()
+
         # redraw actor list
         self.actor_keys.clear()
         self.ui.listWidget.clear()
@@ -661,7 +663,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def draw3DRoomLayout(self) -> None:
         """Draws out the sprites to represent a 3D room from a top-down view"""
 
-        for i, tile in enumerate(self.room_data.grid.tilesdata):
+        grid = self.getRoomGridData()
+        for i, tile in enumerate(grid.tilesdata):
             v_tile: QtWidgets.QLabel = self.tiles[i]
             v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{self.getTileSprite(tile)}.png")))
             v_tile.setScaledContents(True)
@@ -673,7 +676,8 @@ class MainWindow(QtWidgets.QMainWindow):
         # we do not care about the z-axis technically being 2 tiles long, so we only look at half the tile data
         # tile_data = self.room_data.grid.tilesdata
         # tile_data = tile_data[:int(len(tile_data) / 2)]
-        for i, tile in enumerate(self.room_data.grid.tilesdata):
+        grid = self.getRoomGridData()
+        for i, tile in enumerate(grid.tilesdata):
             spr = self.getTileSprite(tile)
             pos = int(i + 80 - (10 * (tile.elevation // 1.5))) - 10
             if spr == "Wall" and str(pos)[-1] in ("0", "9"): # walls need to go up all the way
@@ -683,6 +687,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{spr}.png")))
                 v_tile.setScaledContents(True)
                 pos += 10
+
+
+    def getRoomGridData(self) -> leb.Grid:
+        """Reads the map model from the MapStatic actor and returns that room's grid data"""
+
+        ms = None
+        for act in self.room_data.actors:
+            if act.type == 0x185: # MapStatic
+                ms = act
+                break
+
+        if ms == None:
+            raise TypeError('MapStatic actor was not found!')
+
+        rm = str(ms.parameters[0], 'utf-8') # get room name
+        with open(f"{self.settings['romfs_path']}/region_common/level/{rm.split('_')[0]}/{rm}.leb", 'rb') as f:
+            rm_data = leb.Room(f.read())
+        return rm_data.grid
 
 
     def getTileSprite(self, tile) -> str:
