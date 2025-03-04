@@ -1,5 +1,10 @@
 RELEASE v1.0:
 
+REFACTOR:
+- create a simple state machine instead of using several different booleans, makes code cleaner and easier to debug
+
+- switch to using pathlib instead of os.path
+
 Features:
 - make rotation visible in some way
 

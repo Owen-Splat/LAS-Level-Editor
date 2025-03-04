@@ -7,6 +7,13 @@ import LevelEditorCore.Tools.conversions as convert
 from LevelEditorCore.Data.data import *
 import copy, os, random
 import numpy as np
+from enum import Enum
+
+
+class EditorState(Enum):
+    IDLE = 0
+    DRAW = 1
+    EDIT = 2
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -15,6 +22,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.app_name = app_name
+        self.state = EditorState.IDLE
+
         self.actor_sprites = []
 
         # by default, hide objects without sprites
@@ -94,7 +103,7 @@ class MainWindow(QtWidgets.QMainWindow):
             path = dragged_file
         else:
             dir = f"{self.settings['romfs_path']}/region_common/level"
-            if self.file_loaded:
+            if self.file:
                 dir = os.path.dirname(self.file)
             path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', dir, "Room files (*.leb)")[0]
             if not path.endswith(".leb"):
@@ -102,7 +111,6 @@ class MainWindow(QtWidgets.QMainWindow):
         
         self.fileClose()
         self.file = path
-        self.manual_editing = False
 
         try:
             with open(path, 'rb') as f:
@@ -110,59 +118,63 @@ class MainWindow(QtWidgets.QMainWindow):
         except (FileNotFoundError, ValueError) as e:
             self.showError(e.args[0])
         else:
+            self.enableEditor()
             self.setWindowTitle(f"{self.app_name} - {os.path.basename(path)}")
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
 
-            self.file_loaded = True
             self.ui.listWidget.setEnabled(True)
             self.next_actor = 0
             self.drawRoom(toggle_hide=True)
 
 
     def fileSave(self) -> None:
-        if self.file_loaded:
-            path = os.path.dirname(self.file)
-            if not os.path.exists(path):
-                os.makedirs(path)
-            
-            self.saveActor(self.ui.listWidget.currentRow())
+        if self.state != EditorState.EDIT:
+            return
 
+        path = os.path.dirname(self.file)
+        if not os.path.exists(path):
+            os.makedirs(path)
+        
+        self.saveActor(self.ui.listWidget.currentRow())
+
+        try:
+            with open(self.file, 'wb') as f:
+                f.write(self.room_data.repack())
+        except (ValueError, OverflowError) as e:
+            self.showError(e.args[0])
+        else:
+            message = QtWidgets.QMessageBox()
+            message.setWindowTitle(self.app_name)
+            message.setText('File saved successfully')
+            message.exec()
+
+
+    def fileSaveAs(self) -> None:
+        if self.state != EditorState.EDIT:
+            return
+
+        path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File As',
+            os.path.join(os.path.dirname(self.file), os.path.basename(self.file)), "Room files (*.leb)")[0]
+        
+        if path:
+            self.saveActor(self.ui.listWidget.currentRow())
             try:
-                with open(self.file, 'wb') as f:
+                actor_keys = []
+                for act in self.room_data.actors:
+                    if act.key not in actor_keys:
+                        actor_keys.append(act.key)
+                    else:
+                        raise ValueError('Actors cannot share the same Hex!')
+                with open(path, 'wb') as f:
                     f.write(self.room_data.repack())
             except (ValueError, OverflowError) as e:
                 self.showError(e.args[0])
             else:
+                self.file = path
                 message = QtWidgets.QMessageBox()
                 message.setWindowTitle(self.app_name)
                 message.setText('File saved successfully')
                 message.exec()
-
-
-    def fileSaveAs(self) -> None:
-        if self.file_loaded:
-            path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File As',
-                os.path.join(os.path.dirname(self.file), os.path.basename(self.file)), "Room files (*.leb)")[0]
-            
-            if path:
-                self.saveActor(self.ui.listWidget.currentRow())
-                try:
-                    actor_keys = []
-                    for act in self.room_data.actors:
-                        if act.key not in actor_keys:
-                            actor_keys.append(act.key)
-                        else:
-                            raise ValueError('Actors cannot share the same Hex!')
-                    with open(path, 'wb') as f:
-                        f.write(self.room_data.repack())
-                except (ValueError, OverflowError) as e:
-                    self.showError(e.args[0])
-                else:
-                    self.file = path
-                    message = QtWidgets.QMessageBox()
-                    message.setWindowTitle(self.app_name)
-                    message.setText('File saved successfully')
-                    message.exec()
 
 
     def fileClose(self) -> None:
@@ -170,16 +182,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # general variables reset
         self.file = ''
-        self.file_loaded = False
         self.save_location = ''
-        self.data_viewed = False
         self.room_data = None
         self.current_actor = -1
         self.next_actor = -1
         self.deleted = False
-        self.manual_editing = False
-        self.drawing = False
         self.actor_keys = []
+
+        # state reset
+        self.state = EditorState.IDLE
 
         # clear actor info widgets
         self.ui.listWidget.clear()
@@ -233,7 +244,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def selectedActorChanged(self, current_row) -> None:
-        if not self.file_loaded or self.drawing or self.deleted:
+        if self.state != EditorState.EDIT or self.deleted:
             return
 
         if (current_row != -1) and (current_row != self.current_actor):
@@ -242,14 +253,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def displayActorInfo(self) -> None:
-        if not self.file_loaded:
-            return
-
-        self.manual_editing = False
-
-        if not self.data_viewed:
-            self.enableEditor()
-
         if not self.deleted:
             self.saveActor(self.current_actor)
         else:
@@ -304,47 +307,44 @@ class MainWindow(QtWidgets.QMainWindow):
                 # self.ui.comboBox_5.setCurrentIndex(act.relationships.is_enemy)
                 # self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
                 # self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
-                self.displayEntryInfo()
+                # self.displayEntryInfo()
 
         for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
             field.home(False)
 
-        # let the GUI know that any further changes are from the user and now should update
-        self.manual_editing = True
 
+    # def displayEntryInfo(self) -> None:
+    #     act = self.room_data.actors[self.current_actor]
+    #     relationship_info = {}
 
-    def displayEntryInfo(self) -> None:
-        act = self.room_data.actors[self.current_actor]
-        relationship_info = {}
+    #     relationship_info['Controlled_Actors'] = []
+    #     for entry in act.relationships.section_1:
+    #         params = []
+    #         for param in entry[0]:
+    #             params.append(str(param))
+    #         relationship_info['Controlled_Actors'].append({
+    #             self.room_data.actors[entry[1]].key: {
+    #                 'Parameters': params
+    #             }
+    #         })
+        
+    #     relationship_info['Needed_Positions'] = []
+    #     for entry in act.relationships.section_2:
+    #         params = []
+    #         for param in entry[0]:
+    #             params.append(str(param))
+    #         relationship_info['Needed_Positions'].append({
+    #             'Rail_Index': entry[1],
+    #             'Point_Index': entry[2],
+    #             'Parameters': params
+    #         })
+        
+    #     relationship_info['Actors_That_Use_Me'] = []
+    #     for entry in act.relationships.section_3:
+    #         relationship_info['Actors_That_Use_Me'].append(self.room_data.actors[entry].key)
+        
+    #     # self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
 
-        relationship_info['Controlled_Actors'] = []
-        for entry in act.relationships.section_1:
-            params = []
-            for param in entry[0]:
-                params.append(str(param))
-            relationship_info['Controlled_Actors'].append({
-                self.room_data.actors[entry[1]].key: {
-                    'Parameters': params
-                }
-            })
-        
-        relationship_info['Needed_Positions'] = []
-        for entry in act.relationships.section_2:
-            params = []
-            for param in entry[0]:
-                params.append(str(param))
-            relationship_info['Needed_Positions'].append({
-                'Rail_Index': entry[1],
-                'Point_Index': entry[2],
-                'Parameters': params
-            })
-        
-        relationship_info['Actors_That_Use_Me'] = []
-        for entry in act.relationships.section_3:
-            relationship_info['Actors_That_Use_Me'].append(self.room_data.actors[entry].key)
-        
-        # self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
-    
 
     def saveEntryData(self) -> None:
         pass
@@ -394,33 +394,40 @@ class MainWindow(QtWidgets.QMainWindow):
     def copyActor(self) -> None:
         """Makes a copy of the currently selected actor. The new actor is then given a unique ID"""
 
-        if self.file_loaded:
-            try:
-                self.saveActor(self.current_actor)
-                act = copy.deepcopy(self.room_data.actors[self.current_actor])
-                while act.key in self.actor_keys:
-                    act.key = random.getrandbits(64) # the list of keys is updated when calling drawRoom()
-                self.room_data.actors.append(act)
-                self.next_actor = self.ui.listWidget.count()
-                self.drawRoom()
-            except ValueError as e:
-                self.showError(e.args[0])
-            except IndexError:
-                pass
+        if self.state != EditorState.EDIT:
+            return
+
+        try:
+            self.saveActor(self.current_actor)
+            act = copy.deepcopy(self.room_data.actors[self.current_actor])
+            while act.key in self.actor_keys:
+                act.key = random.getrandbits(64) # the list of keys is updated when calling drawRoom()
+            self.room_data.actors.append(act)
+            self.next_actor = self.ui.listWidget.count()
+            self.drawRoom()
+        except ValueError as e:
+            self.showError(e.args[0])
+        except IndexError:
+            pass
 
 
     def deleteButton_Clicked(self) -> None:
-        if self.file_loaded:
-            if self.room_data.actors[self.current_actor].type not in REQUIRED_ACTORS:
+        if self.state != EditorState.EDIT:
+            return
+
+        if self.room_data.actors[self.current_actor].type not in REQUIRED_ACTORS:
+            self.deleteActor()
+        else:
+            if len([act for act in self.room_data.actors if act.type == self.room_data.actors[self.current_actor].type]) > 1:
                 self.deleteActor()
             else:
-                if len([act for act in self.room_data.actors if act.type == self.room_data.actors[self.current_actor].type]) > 1:
-                    self.deleteActor()
-                else:
-                    self.showError('Levels require at least 1 actor of this type')
+                self.showError('Levels require at least 1 actor of this type')
 
 
     def deleteActor(self) -> None:
+        if self.state != EditorState.EDIT:
+            return
+
         # before deleting the actor, we need to adjust actor references
         for act in self.room_data.actors:
             i = 0
@@ -460,16 +467,18 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def toggleActor(self) -> None:
-        if self.room_data == None:
+        if self.state != EditorState.EDIT:
             return
+
         act = self.room_data.actors[self.current_actor]
         act.visible = not act.visible
         self.drawRoom()
 
 
     def toggleShowButton(self) -> None:
-        if self.current_actor == -1:
+        if self.state != EditorState.EDIT:
             return
+
         if self.room_data.actors[self.current_actor].visible:
             self.ui.showButton.setText("Hide")
         else:
@@ -477,6 +486,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def toggleNoModelObjects(self) -> None:
+        if self.state != EditorState.EDIT:
+            return
+
         self.hideEmptySprites = self.ui.hideUnimportantCheck.isChecked()
         self.drawRoom(toggle_hide=True)
 
@@ -491,7 +503,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateActorType(self) -> None:
         """Runs when the type field is edited and updates the actor"""
 
-        if not self.manual_editing: # only change actor type when the user actually manually edits
+        if self.state != EditorState.EDIT:
             return
 
         act = self.room_data.actors[self.current_actor]
@@ -525,7 +537,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for actor in abc_actors:
             if not actor.startswith(('Player', 'null')):
                 self.ui.dataType.addItem(actor)
-        self.data_viewed = True
 
 
     def showError(self, error_message) -> None:
@@ -561,10 +572,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def drawRoom(self, toggle_hide=False) -> None:
         """Updates actor info and draws basic sprites to represent the room and its actors"""
 
-        if self.room_data == None:
-            return
-
-        self.drawing = True
+        self.state = EditorState.DRAW
 
         # delete old actor sprites
         for act in self.actor_sprites:
@@ -657,7 +665,7 @@ class MainWindow(QtWidgets.QMainWindow):
             current_sprite.raise_()
 
         self.toggleShowButton()
-        self.drawing = False
+        self.state = EditorState.EDIT
 
 
     def draw3DRoomLayout(self) -> None:
