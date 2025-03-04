@@ -22,6 +22,7 @@ ObjSquareBlock:
 ObjTreasureBox:
   - Appear Flag (Keep as Switch0)
   - Chest Contents
+  - Index
 ItemHeartPiece:
   - Index
 ItemSecretSeashell:
