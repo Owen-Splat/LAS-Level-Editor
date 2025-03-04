@@ -2,18 +2,11 @@ from PySide6 import QtCore, QtWidgets, QtGui
 from LevelEditorUI.UI.ui_form import Ui_MainWindow
 from LevelEditorUI.path_window import PathsWindow
 from LevelEditorUI.custom_widgets import *
+from LevelEditorUI.States.states import *
+from LevelEditorCore.Data.data import *
 import LevelEditorCore.Tools.FixedHash.leb as leb
 import LevelEditorCore.Tools.conversions as convert
-from LevelEditorCore.Data.data import *
 import copy, os, random
-import numpy as np
-from enum import Enum
-
-
-class EditorState(Enum):
-    IDLE = 0
-    DRAW = 1
-    EDIT = 2
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -22,7 +15,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self.app_name = app_name
-        self.state = EditorState.IDLE
 
         self.actor_sprites = []
 
@@ -93,7 +85,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # for now, the window is fixed size until all core features are working, then we can work more on UI
         self.setFixedSize(self.size())
-        self.fileClose() # call fileClose() to define default variable values
+        self.state = StateMachine(self)
         self.show()
         self.prepareSettings()
 
@@ -109,7 +101,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if not path.endswith(".leb"):
                 return
         
-        self.fileClose()
+        # self.fileClose()
+        self.state.changeToIdle()
         self.file = path
 
         try:
@@ -124,11 +117,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
             self.ui.listWidget.setEnabled(True)
             self.next_actor = 0
-            self.drawRoom(toggle_hide=True)
+            self.toggle_hide = True
+            self.state.changeToDraw()
 
 
     def fileSave(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         path = os.path.dirname(self.file)
@@ -150,7 +144,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def fileSaveAs(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File As',
@@ -177,47 +171,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 message.exec()
 
 
-    def fileClose(self) -> None:
-        """Closes the currently opened file and resets variables"""
-
-        # general variables reset
-        self.file = ''
-        self.save_location = ''
-        self.room_data = None
-        self.current_actor = -1
-        self.next_actor = -1
-        self.deleted = False
-        self.actor_keys = []
-
-        # state reset
-        self.state = EditorState.IDLE
-
-        # clear actor info widgets
-        self.ui.listWidget.clear()
-        self.ui.listWidget.setEnabled(False)
-        for i in range(8):
-            self.ui.tableWidget.item(i, 0).setText('')
-            self.ui.tableWidget.item(i, 1).setText('')
-        self.ui.tableWidget.setEnabled(False)
-        self.ui.dataType.clear()
-        for c in self.ui.centralwidget.children():
-            try:
-                c.setEnabled(False)
-            except AttributeError: # some objects won't have this attribute
-                pass
-        for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit):
-            field.setText('')
-
-        # delete actor sprites
-        for act in self.actor_sprites:
-            act.deleteLater()
-        self.actor_sprites = []
-
-        # clear room layout tiles, do not delete because we want to keep these to draw future rooms
-        for tile in self.tiles:
-            tile.clear()
-
-        self.setWindowTitle(self.app_name)
+    def fileClose(self):
+        self.state.changeToIdle()
 
 
     def prepareSettings(self) -> None:
@@ -244,106 +199,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def selectedActorChanged(self, current_row) -> None:
-        if self.state != EditorState.EDIT or self.deleted:
+        if not self.state.isEditMode() or self.deleted:
             return
 
         if (current_row != -1) and (current_row != self.current_actor):
             self.next_actor = current_row
-            self.drawRoom()
-
-
-    def displayActorInfo(self) -> None:
-        if not self.deleted:
-            self.saveActor(self.current_actor)
-        else:
-            self.deleted = False
-
-        self.current_actor = self.ui.listWidget.currentRow() if self.room_data.actors else -1
-
-        if self.current_actor != -1:
-            try:
-                act = self.room_data.actors[self.current_actor]
-            except IndexError:
-                return
-            else:
-                full_name = ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))]
-                self.ui.ID_lineEdit.setText(str(act.key))
-                self.ui.dataType.setCurrentIndex(
-                    self.ui.dataType.findText(full_name, QtCore.Qt.MatchExactly))
-                self.ui.dataPos_X.setText(convert.removeTrailingZeros(f'{act.position.x:.4f}'))
-                self.ui.dataPos_Y.setText(convert.removeTrailingZeros(f'{act.position.y:.4f}'))
-                self.ui.dataPos_Z.setText(convert.removeTrailingZeros(f'{act.position.z:.4f}'))
-                self.ui.dataRot_X.setText(convert.removeTrailingZeros(f'{act.rotation.x:.4f}'))
-                self.ui.dataRot_Y.setText(convert.removeTrailingZeros(f'{act.rotation.y:.4f}'))
-                self.ui.dataRot_Z.setText(convert.removeTrailingZeros(f'{act.rotation.z:.4f}'))
-                self.ui.dataScale_X.setText(convert.removeTrailingZeros(f'{act.scale.x:.4f}'))
-                self.ui.dataScale_Y.setText(convert.removeTrailingZeros(f'{act.scale.y:.4f}'))
-                self.ui.dataScale_Z.setText(convert.removeTrailingZeros(f'{act.scale.z:.4f}'))
-
-                for i in range(8):
-                    if isinstance(act.parameters[i], bytes):
-                        param = str(act.parameters[i], 'utf-8')
-                    elif isinstance(act.parameters[i], np.float32):
-                        param = convert.removeTrailingZeros(f'{act.parameters[i]:.4f}')
-                    else:
-                        param = str(act.parameters[i])
-                    self.ui.tableWidget.item(i, 0).setText('???')
-                    self.ui.tableWidget.item(i, 1).setText(param)
-                    if full_name in ACTOR_PARAMETERS:
-                        if i+1 <= len(ACTOR_PARAMETERS[full_name]):
-                            param_info = str(ACTOR_PARAMETERS[full_name][i])
-                            self.ui.tableWidget.item(i, 0).setText(param_info)
-
-                self.ui.dataSwitches_0.setText(str(act.switches[0][1]))
-                self.ui.comboBox.setCurrentIndex(act.switches[0][0])
-                self.ui.dataSwitches_1.setText(str(act.switches[1][1]))
-                self.ui.comboBox_2.setCurrentIndex(act.switches[1][0])
-                self.ui.dataSwitches_2.setText(str(act.switches[2][1]))
-                self.ui.comboBox_3.setCurrentIndex(act.switches[2][0])
-                self.ui.dataSwitches_3.setText(str(act.switches[3][1]))
-                self.ui.comboBox_4.setCurrentIndex(act.switches[3][0])
-
-                # relationships
-                # self.ui.comboBox_5.setCurrentIndex(act.relationships.is_enemy)
-                # self.ui.comboBox_6.setCurrentIndex(act.relationships.check_kills)
-                # self.ui.comboBox_7.setCurrentIndex(act.relationships.is_chamber_enemy)
-                # self.displayEntryInfo()
-
-        for field in self.ui.centralwidget.findChildren(QtWidgets.QLineEdit): # forces QLineEdit to display from leftmost character
-            field.home(False)
-
-
-    # def displayEntryInfo(self) -> None:
-    #     act = self.room_data.actors[self.current_actor]
-    #     relationship_info = {}
-
-    #     relationship_info['Controlled_Actors'] = []
-    #     for entry in act.relationships.section_1:
-    #         params = []
-    #         for param in entry[0]:
-    #             params.append(str(param))
-    #         relationship_info['Controlled_Actors'].append({
-    #             self.room_data.actors[entry[1]].key: {
-    #                 'Parameters': params
-    #             }
-    #         })
-        
-    #     relationship_info['Needed_Positions'] = []
-    #     for entry in act.relationships.section_2:
-    #         params = []
-    #         for param in entry[0]:
-    #             params.append(str(param))
-    #         relationship_info['Needed_Positions'].append({
-    #             'Rail_Index': entry[1],
-    #             'Point_Index': entry[2],
-    #             'Parameters': params
-    #         })
-        
-    #     relationship_info['Actors_That_Use_Me'] = []
-    #     for entry in act.relationships.section_3:
-    #         relationship_info['Actors_That_Use_Me'].append(self.room_data.actors[entry].key)
-        
-    #     # self.ui.textEdit.setText(yaml.dump(relationship_info, Dumper=MyDumper, sort_keys=False, default_flow_style=False, indent=4))
+            self.state.changeToDraw()
 
 
     def saveEntryData(self) -> None:
@@ -394,17 +255,17 @@ class MainWindow(QtWidgets.QMainWindow):
     def copyActor(self) -> None:
         """Makes a copy of the currently selected actor. The new actor is then given a unique ID"""
 
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         try:
             self.saveActor(self.current_actor)
             act = copy.deepcopy(self.room_data.actors[self.current_actor])
             while act.key in self.actor_keys:
-                act.key = random.getrandbits(64) # the list of keys is updated when calling drawRoom()
+                act.key = random.getrandbits(64)
             self.room_data.actors.append(act)
             self.next_actor = self.ui.listWidget.count()
-            self.drawRoom()
+            self.state.changeToDraw()
         except ValueError as e:
             self.showError(e.args[0])
         except IndexError:
@@ -412,7 +273,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def deleteButton_Clicked(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         if self.room_data.actors[self.current_actor].type not in REQUIRED_ACTORS:
@@ -425,7 +286,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def deleteActor(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         # before deleting the actor, we need to adjust actor references
@@ -463,20 +324,20 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.current_actor == self.ui.listWidget.count() - 1:
             self.next_actor = self.current_actor - 1
         self.deleted = True
-        self.drawRoom()
+        self.state.changeToDraw()
 
 
     def toggleActor(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         act = self.room_data.actors[self.current_actor]
         act.visible = not act.visible
-        self.drawRoom()
+        self.state.changeToDraw()
 
 
     def toggleShowButton(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isDrawMode():
             return
 
         if self.room_data.actors[self.current_actor].visible:
@@ -486,11 +347,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def toggleNoModelObjects(self) -> None:
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         self.hideEmptySprites = self.ui.hideUnimportantCheck.isChecked()
-        self.drawRoom(toggle_hide=True)
+        self.toggle_hide = True
+        self.state.changeToDraw()
 
 
     def toggleGrid(self) -> None:
@@ -503,7 +365,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateActorType(self) -> None:
         """Runs when the type field is edited and updates the actor"""
 
-        if self.state != EditorState.EDIT:
+        if not self.state.isEditMode():
             return
 
         act = self.room_data.actors[self.current_actor]
@@ -522,7 +384,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.dataType.setCurrentIndex(
                     self.ui.dataType.findText(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))], QtCore.Qt.MatchExactly))
 
-        self.drawRoom()
+        self.state.changeToDraw()
 
 
     def enableEditor(self) -> None:
@@ -569,175 +431,6 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
 
-    def drawRoom(self, toggle_hide=False) -> None:
-        """Updates actor info and draws basic sprites to represent the room and its actors"""
-
-        self.state = EditorState.DRAW
-
-        # delete old actor sprites
-        for act in self.actor_sprites:
-            act.deleteLater()
-        self.actor_sprites = []
-
-        # draw out the room based on tile data
-        if self.room_data.grid.info.room_type == '3D':
-            self.draw3DRoomLayout()
-        else:
-            self.draw2DRoomLayout()
-
-        # redraw actor list
-        self.actor_keys.clear()
-        self.ui.listWidget.clear()
-        for act in self.room_data.actors:
-            self.actor_keys.append(act.key)
-            self.ui.listWidget.addItem(ACTOR_NAMES[ACTOR_IDS.index(hex(act.type))])
-        if self.current_actor >= 0:
-            self.ui.listWidget.setCurrentRow(self.next_actor)
-        else:
-            self.ui.listWidget.setCurrentRow(0)
-
-        # display the info of the currently selected actor
-        self.displayActorInfo()
-
-        # now draw the actor sprites
-        current_sprite = None
-        enemy_sprites = []
-        for i, act in enumerate(self.room_data.actors):
-            if i == self.current_actor:
-                sprite = SelectedLabel(self.ui.roomFrame)
-            else:
-                sprite = ActorLabel(self.ui.roomFrame)
-                sprite.actor_index = i
-
-            # define the sprite name and create a pixmap out of it
-            name = self.ui.listWidget.item(i).text()
-            if name in ACTOR_ICONS:
-                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, f"{name}.png"))
-            else:
-                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "NoSprite.png"))
-                # if "hide objects without sprites" was just toggled, set the visible variable
-                if toggle_hide:
-                    act.visible = not self.hideEmptySprites
-
-            # create refs of enemy sprites to raise above other sprites
-            if name.startswith('Enemy'):
-                enemy_sprites.append(sprite)
-
-            # rotate sprite, will need to create a mapping of actors and default rotations
-            # trans = QtGui.QTransform()
-            # trans.rotate(act.rotY * -1)
-            # pix = pix.transformed(trans)
-
-            # define geometry
-            spr_width = round(self.tile_pixel_size * act.scale.x)
-            spr_height = round(self.tile_pixel_size * act.scale.z)
-            unit_pixel_ratio = self.tile_pixel_size / self.tile_unit_size
-            posX = round(((act.position.x - self.topleft[0]) * unit_pixel_ratio) - (spr_width / 2))
-            if self.room_data.grid.info.room_type == '3D':
-                posY = round(((act.position.z - self.topleft[1]) * unit_pixel_ratio) - (spr_height / 2))
-            else:
-                spr_height = round(self.tile_pixel_size * act.scale.y)
-                posY = round((12 - act.position.y) * unit_pixel_ratio)
-            sprite.setGeometry(posX, posY, spr_width, spr_height)
-
-            # we scale the pixmap instead of letting the QLabel do it, this way the pixel art is not blurred and stays crisp
-            pix = pix.scaled(sprite.width(), sprite.height(), 
-                QtCore.Qt.AspectRatioMode.IgnoreAspectRatio, QtCore.Qt.TransformationMode.FastTransformation)
-            sprite.setPixmap(pix)
-
-            # add sprite to a reference list so we can delete it before a redraw
-            self.actor_sprites.append(sprite)
-
-            # create reference to the sprite of the currently selected actor
-            if i == self.current_actor:
-                current_sprite = sprite
-
-            # only show the sprite if it's not hidden
-            if act.visible:
-                sprite.show()
-
-        # raise enemy sprites
-        for spr in enemy_sprites:
-            spr.raise_()
-
-        # raise the currently selected actor above everything else
-        if current_sprite != None:
-            current_sprite.raise_()
-
-        self.toggleShowButton()
-        self.state = EditorState.EDIT
-
-
-    def draw3DRoomLayout(self) -> None:
-        """Draws out the sprites to represent a 3D room from a top-down view"""
-
-        grid = self.getRoomGridData()
-        for i, tile in enumerate(grid.tilesdata):
-            v_tile: QtWidgets.QLabel = self.tiles[i]
-            v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{self.getTileSprite(tile)}.png")))
-            v_tile.setScaledContents(True)
-
-
-    def draw2DRoomLayout(self) -> None:
-        """Draws out the sprites to represent a 2D room from a front-facing view"""
-
-        # we do not care about the z-axis technically being 2 tiles long, so we only look at half the tile data
-        # tile_data = self.room_data.grid.tilesdata
-        # tile_data = tile_data[:int(len(tile_data) / 2)]
-        grid = self.getRoomGridData()
-        for i, tile in enumerate(grid.tilesdata):
-            spr = self.getTileSprite(tile)
-            pos = int(i + 80 - (10 * (tile.elevation // 1.5))) - 10
-            if spr == "Wall" and str(pos)[-1] in ("0", "9"): # walls need to go up all the way
-                pos = int(str(pos)[-1])
-            while pos < 80:
-                v_tile: QtWidgets.QLabel = self.tiles[pos]
-                v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{spr}.png")))
-                v_tile.setScaledContents(True)
-                pos += 10
-
-
-    def getRoomGridData(self) -> leb.Grid:
-        """Reads the map model from the MapStatic actor and returns that room's grid data"""
-
-        ms = None
-        for act in self.room_data.actors:
-            if act.type == 0x185: # MapStatic
-                ms = act
-                break
-
-        if ms == None:
-            raise TypeError('MapStatic actor was not found!')
-
-        rm = str(ms.parameters[0], 'utf-8') # get room name
-        with open(f"{self.settings['romfs_path']}/region_common/level/{rm.split('_')[0]}/{rm}.leb", 'rb') as f:
-            rm_data = leb.Room(f.read())
-        return rm_data.grid
-
-
-    def getTileSprite(self, tile) -> str:
-        """Determines the sprite by reading the tile's data, and returns the pixmap"""
-
-        contains_collision: bool = tile.flags1['containscollision']
-        deep_water: bool = tile.flags1['deepwaterlava']
-        is_water: bool = tile.flags3['iswaterlava']
-        can_dig: bool = tile.flags3['isdigspot']
-        tile_sprite = 'Walkable' #"#e5cc8f"
-
-        # Some tiles contain collision for actors. By checking can_dig & is_water, we can elim most
-        if contains_collision and (not can_dig or not is_water):
-            tile_sprite = 'Wall' #"#775c2e"
-        else:
-            if deep_water:
-                tile_sprite = 'Water' #"#6b7d63"
-                if not is_water:
-                    tile_sprite = 'Hole' #"black"
-            elif is_water:
-                tile_sprite = 'ShallowWater' #"#8a9b75"
-
-        return tile_sprite
-
-
     def closeEvent(self, event) -> None:
         QtWidgets.QApplication.instance().processEvents()
         with open(SETTINGS_PATH, 'w') as f:
@@ -753,7 +446,7 @@ class MainWindow(QtWidgets.QMainWindow):
         p_window.exec()
 
 
-    def obtainSettings(self, settings):
+    def obtainSettings(self, settings) -> None:
         self.paths_valid = settings[0]
         if self.paths_valid:
             self.settings = settings[1]
