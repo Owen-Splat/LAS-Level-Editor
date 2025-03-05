@@ -1,5 +1,5 @@
-from PySide6 import QtCore, QtWidgets, QtGui
-import os
+from PySide6 import QtCore, QtWidgets
+from pathlib import Path
 
 
 class PathsWindow(QtWidgets.QDialog):
@@ -9,6 +9,9 @@ class PathsWindow(QtWidgets.QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedSize(400, 200)
+        self.rom_path = Path()
+        self.out_path = Path()
+        self.paths_valid = False
         main_text = QtWidgets.QLabel('Please select your paths', parent=self)
         main_text.setGeometry(10, 0, self.width(), 30)
         main_text.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
@@ -52,29 +55,29 @@ class PathsWindow(QtWidgets.QDialog):
 
 
     def validatePaths(self, rom=True, out=True) -> None:
-        if not rom and not out:
+        if (not rom) and (not out):
             return
 
-        rom_valid = False
         if rom:
-            rom_path = self.rom_line.text()
-            if os.path.exists(os.path.join(rom_path, 'romfs')):
-                rom_path = os.path.join(rom_path, 'romfs')
-            self.rom_line.setText(rom_path)
-            if os.path.isfile(os.path.join(rom_path, 'region_common/level/MarinTarinHouse/MarinTarinHouse_01A.leb')):
+            rom_path = Path(self.rom_line.text())
+            if (rom_path / 'romfs').exists():
+                rom_path = (rom_path / 'romfs')
+            self.rom_line.setText(str(rom_path))
+            if (rom_path / 'region_common/level/MarinTarinHouse/MarinTarinHouse_01A.leb').exists():
                 self.rom_line.setStyleSheet('background-color: green')
-                rom_valid = True
+                self.rom_path = rom_path
             else:
                 self.rom_line.setStyleSheet('background-color: red')
 
-        out_valid = False
         if out:
-            out_path = self.out_line.text()
-            color = 'green' if os.path.exists(out_path) else 'red'
-            self.out_line.setStyleSheet(f'background-color: {color}')
-            out_valid = True
+            out_path = Path(self.out_line.text())
+            if out_path != Path() and out_path.exists():
+                self.out_line.setStyleSheet('background-color: green')
+                self.out_path = out_path
+            else:
+                self.out_line.setStyleSheet('background-color: red')
 
-        if rom_valid and out_valid:
+        if self.rom_path != Path() and self.out_path != Path():
             self.paths_valid = True
 
 
@@ -83,8 +86,5 @@ class PathsWindow(QtWidgets.QDialog):
 
 
     def done(self, result):
-        print('done()')
-        self.give_settings.emit((self.paths_valid, {
-            'romfs_path': self.rom_line.text(),
-            'output_path': self.out_line.text()}))
+        self.give_settings.emit((self.paths_valid, self.rom_path, self.out_path))
         super().done(result)

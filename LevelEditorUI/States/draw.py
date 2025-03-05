@@ -52,9 +52,9 @@ class DrawState:
             # define the sprite name and create a pixmap out of it
             name = self.window.ui.listWidget.item(i).text()
             if name in ACTOR_ICONS:
-                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, f"{name}.png"))
+                pix = QtGui.QPixmap(ACTOR_ICONS_PATH / f"{name}.png")
             else:
-                pix = QtGui.QPixmap(os.path.join(ACTOR_ICONS_PATH, "NoSprite.png"))
+                pix = QtGui.QPixmap(ACTOR_ICONS_PATH / "NoSprite.png")
                 # if "hide objects without sprites" was just toggled, set the visible variable
                 if self.window.toggle_hide:
                     act.visible = not self.window.hideEmptySprites
@@ -114,7 +114,7 @@ class DrawState:
         grid = self.getRoomGridData()
         for i, tile in enumerate(grid.tilesdata):
             v_tile: QtWidgets.QLabel = self.window.tiles[i]
-            v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{self.getTileSprite(tile)}.png")))
+            v_tile.setPixmap(QtGui.QPixmap(TILE_ICONS_PATH / f"{self.getTileSprite(tile)}.png"))
             v_tile.setScaledContents(True)
 
 
@@ -132,7 +132,7 @@ class DrawState:
                 pos = int(str(pos)[-1])
             while pos < 80:
                 v_tile: QtWidgets.QLabel = self.window.tiles[pos]
-                v_tile.setPixmap(QtGui.QPixmap(os.path.join(TILE_ICONS_PATH, f"{spr}.png")))
+                v_tile.setPixmap(QtGui.QPixmap(TILE_ICONS_PATH / f"{spr}.png"))
                 v_tile.setScaledContents(True)
                 pos += 10
 
@@ -150,7 +150,7 @@ class DrawState:
             raise TypeError('MapStatic actor was not found!')
 
         rm = str(ms.parameters[0], 'utf-8') # get room name
-        with open(f"{self.window.settings['romfs_path']}/region_common/level/{rm.split('_')[0]}/{rm}.leb", 'rb') as f:
+        with open(self.window.rom_path / "region_common/level" / rm.split('_')[0] / f"{rm}.leb", 'rb') as f:
             rm_data = leb.Room(f.read())
         return rm_data.grid
 

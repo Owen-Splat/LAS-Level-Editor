@@ -6,7 +6,8 @@ from LevelEditorUI.States.states import *
 from LevelEditorCore.Data.data import *
 import LevelEditorCore.Tools.FixedHash.leb as leb
 import LevelEditorCore.Tools.conversions as convert
-import copy, os, random
+from pathlib import Path
+import copy, random
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -16,6 +17,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.app_name = app_name
 
+        self.rom_path = Path()
+        self.out_path = Path()
         self.actor_sprites = []
 
         # by default, hide objects without sprites
@@ -35,8 +38,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.actionSave.triggered.connect(self.fileSave)
         self.ui.actionSaveAs.triggered.connect(self.fileSaveAs)
         self.ui.actionClose.triggered.connect(self.fileClose)
-        # self.ui.actionRomfs.triggered.connect(self.chooseRomfs)
-        # self.ui.actionOutput_Path.triggered.connect(self.chooseOutput)
 
         # widget signals
         self.ui.listWidget.currentRowChanged.connect(self.selectedActorChanged)
@@ -47,6 +48,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.hideUnimportantCheck.clicked.connect(self.toggleNoModelObjects)
         self.ui.gridCheck.clicked.connect(self.toggleGrid)
 
+        # change position and rotation lineEdits to custom class for moving actors via arrow keys
         for line in self.findChildren(QtWidgets.QLineEdit):
             if line.objectName().startswith('dataPos'):
                 line.__class__ = PosLineEdit
@@ -83,9 +85,11 @@ class MainWindow(QtWidgets.QMainWindow):
         # set stylesheet
         self.setStyleSheet(LIGHT_STYLE)
 
+        # initialize the editor state machine
+        self.state = StateMachine(self)
+
         # for now, the window is fixed size until all core features are working, then we can work more on UI
         self.setFixedSize(self.size())
-        self.state = StateMachine(self)
         self.show()
         self.prepareSettings()
 
@@ -94,16 +98,20 @@ class MainWindow(QtWidgets.QMainWindow):
         if dragged_file:
             path = dragged_file
         else:
-            dir = f"{self.settings['romfs_path']}/region_common/level"
+            dir = self.rom_path / 'region_common/level'
             if self.file:
-                dir = os.path.dirname(self.file)
-            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', dir, "Room files (*.leb)")[0]
+                dir = self.file.parent
+            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', str(dir), "Room files (*.leb)")[0]
             if not path.endswith(".leb"):
                 return
-        
-        # self.fileClose()
-        self.state.changeToIdle()
-        self.file = path
+
+        self.state.changeToIdle() # temp idle state to reset everything
+
+        # now we want to store the file location, but in the output dir rather than romfs dir
+        path = Path(path)
+        file_name = path.name
+        level_name = file_name.split('_')[0]
+        self.file = self.out_path / 'region_common/level' / level_name / file_name
 
         try:
             with open(path, 'rb') as f:
@@ -112,9 +120,8 @@ class MainWindow(QtWidgets.QMainWindow):
             self.showError(e.args[0])
         else:
             self.enableEditor()
-            self.setWindowTitle(f"{self.app_name} - {os.path.basename(path)}")
+            self.setWindowTitle(f"{self.app_name} - {path.stem}")
             self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
-
             self.ui.listWidget.setEnabled(True)
             self.next_actor = 0
             self.toggle_hide = True
@@ -125,10 +132,9 @@ class MainWindow(QtWidgets.QMainWindow):
         if not self.state.isEditMode():
             return
 
-        path = os.path.dirname(self.file)
-        if not os.path.exists(path):
-            os.makedirs(path)
-        
+        path = self.file.parent
+        path.mkdir(parents=True, exist_ok=True)
+
         self.saveActor(self.ui.listWidget.currentRow())
 
         try:
@@ -148,7 +154,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return
 
         path = QtWidgets.QFileDialog.getSaveFileName(self, 'Save File As',
-            os.path.join(os.path.dirname(self.file), os.path.basename(self.file)), "Room files (*.leb)")[0]
+            self.file.parent / self.file.stem, "Room files (*.leb)")[0]
         
         if path:
             self.saveActor(self.ui.listWidget.currentRow())
@@ -164,7 +170,7 @@ class MainWindow(QtWidgets.QMainWindow):
             except (ValueError, OverflowError) as e:
                 self.showError(e.args[0])
             else:
-                self.file = path
+                self.file = Path(path)
                 message = QtWidgets.QMessageBox()
                 message.setWindowTitle(self.app_name)
                 message.setText('File saved successfully')
@@ -178,16 +184,21 @@ class MainWindow(QtWidgets.QMainWindow):
     def prepareSettings(self) -> None:
         self.paths_valid = False
         open_paths = False
-        self.settings = copy.deepcopy(SETTINGS)
 
-        if self.settings['romfs_path']:
-            if not os.path.exists(self.settings['romfs_path']):
+        if SETTINGS['romfs_path']:
+            rom_path = Path(SETTINGS['romfs_path'])
+            if rom_path != Path() and rom_path.exists():
+                self.rom_path = rom_path
+            else:
                 open_paths = True
         else:
             open_paths = True
 
-        if self.settings['output_path']:
-            if not os.path.exists(self.settings['output_path']):
+        if SETTINGS['output_path']:
+            out_path = Path(SETTINGS['output_path'])
+            if out_path != Path() and out_path.exists():
+                self.out_path = out_path
+            else:
                 open_paths = True
         else:
             open_paths = True
@@ -433,8 +444,12 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def closeEvent(self, event) -> None:
         QtWidgets.QApplication.instance().processEvents()
+        settings = {
+            'romfs_path': str(self.rom_path),
+            'output_path': str(self.out_path)
+        }
         with open(SETTINGS_PATH, 'w') as f:
-            yaml.dump(self.settings, f, sort_keys=False)
+            yaml.dump(settings, f, sort_keys=False)
         event.accept()
 
 
@@ -449,6 +464,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def obtainSettings(self, settings) -> None:
         self.paths_valid = settings[0]
         if self.paths_valid:
-            self.settings = settings[1]
+            self.rom_path = settings[1]
+            self.out_path = settings[2]
         else:
             self.deleteLater()
