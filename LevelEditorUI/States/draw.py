@@ -6,8 +6,8 @@ import numpy as np
 
 
 class DrawState:
-    def __init__(self, parent, toggle_hide=False, hide_empty_sprites=True) -> None:
-        self.window = parent
+    def __init__(self, window, toggle_hide=False, hide_empty_sprites=True) -> None:
+        self.window = window
         self.drawRoom(toggle_hide, hide_empty_sprites)
 
 
