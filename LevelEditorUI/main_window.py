@@ -116,12 +116,13 @@ class MainWindow(QtWidgets.QMainWindow):
         try:
             with open(path, 'rb') as f:
                 self.room_data = leb.Room(f.read())
-        except (FileNotFoundError, ValueError) as e:
+            # AttributeError if the room does not have grid info, these rooms are not yet supported by this editor
+            self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
+        except (AttributeError, FileNotFoundError, ValueError) as e:
             self.showError(e.args[0])
         else:
             self.enableEditor()
             self.setWindowTitle(f"{self.app_name} - {path.stem}")
-            self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
             self.ui.listWidget.setEnabled(True)
             self.next_actor = 0
             self.toggle_hide = True
