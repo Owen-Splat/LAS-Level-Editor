@@ -22,7 +22,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actor_sprites = []
 
         # by default, hide objects without sprites
-        self.hideEmptySprites = True
         self.ui.hideUnimportantCheck.setChecked(True)
 
         # accept drop events so that files can be opened by dragging them into the editor
@@ -95,38 +94,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
     def fileOpen(self, dragged_file=None) -> None:
-        if dragged_file:
-            path = dragged_file
-        else:
-            dir = self.rom_path / 'region_common/level'
-            if self.file:
-                dir = self.file.parent
-            path = QtWidgets.QFileDialog.getOpenFileName(self, 'Open File', str(dir), "Room files (*.leb)")[0]
-            if not path.endswith(".leb"):
-                return
-
-        self.state.changeToIdle() # temp idle state to reset everything
-
-        # now we want to store the file location, but in the output dir rather than romfs dir
-        path = Path(path)
-        file_name = path.name
-        level_name = file_name.split('_')[0]
-        self.file = self.out_path / 'region_common/level' / level_name / file_name
-
-        try:
-            with open(path, 'rb') as f:
-                self.room_data = leb.Room(f.read())
-            # AttributeError if the room does not have grid info, these rooms are not yet supported by this editor
-            self.topleft = [self.room_data.grid.info.x_coord, self.room_data.grid.info.z_coord]
-        except (AttributeError, FileNotFoundError, ValueError) as e:
-            self.showError(e.args[0])
-        else:
-            self.enableEditor()
-            self.setWindowTitle(f"{self.app_name} - {path.stem}")
-            self.ui.listWidget.setEnabled(True)
-            self.next_actor = 0
-            self.toggle_hide = True
-            self.state.changeToDraw()
+        self.state.changeToRead(dragged_file)
 
 
     def fileSave(self) -> None:
@@ -361,10 +329,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def toggleNoModelObjects(self) -> None:
         if not self.state.isEditMode():
             return
-
-        self.hideEmptySprites = self.ui.hideUnimportantCheck.isChecked()
-        self.toggle_hide = True
-        self.state.changeToDraw()
+        self.state.changeToDraw(toggle_hide=True, hide_empty_sprites=self.ui.hideUnimportantCheck.isChecked())
 
 
     def toggleGrid(self) -> None:

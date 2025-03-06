@@ -6,12 +6,12 @@ import numpy as np
 
 
 class DrawState:
-    def __init__(self, parent) -> None:
+    def __init__(self, parent, toggle_hide=False, hide_empty_sprites=True) -> None:
         self.window = parent
-        self.drawRoom()
+        self.drawRoom(toggle_hide, hide_empty_sprites)
 
 
-    def drawRoom(self) -> None:
+    def drawRoom(self, toggle_hide=False, hide_empty_sprites=True) -> None:
         """Updates actor info and draws basic sprites to represent the room and its actors"""
 
         # delete old actor sprites
@@ -56,8 +56,8 @@ class DrawState:
             else:
                 pix = QtGui.QPixmap(ACTOR_ICONS_PATH / "NoSprite.png")
                 # if "hide objects without sprites" was just toggled, set the visible variable
-                if self.window.toggle_hide:
-                    act.visible = not self.window.hideEmptySprites
+                if toggle_hide:
+                    act.visible = hide_empty_sprites
 
             # create refs of enemy sprites to raise above other sprites
             if name.startswith('Enemy'):
@@ -105,7 +105,6 @@ class DrawState:
             current_sprite.raise_()
 
         self.window.toggleShowButton()
-        self.window.toggle_hide = False
 
 
     def draw3DRoomLayout(self) -> None:
