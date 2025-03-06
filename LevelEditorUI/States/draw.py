@@ -57,7 +57,7 @@ class DrawState:
                 pix = QtGui.QPixmap(ACTOR_ICONS_PATH / "NoSprite.png")
                 # if "hide objects without sprites" was just toggled, set the visible variable
                 if toggle_hide:
-                    act.visible = hide_empty_sprites
+                    act.visible = not hide_empty_sprites
 
             # create refs of enemy sprites to raise above other sprites
             if name.startswith('Enemy'):
