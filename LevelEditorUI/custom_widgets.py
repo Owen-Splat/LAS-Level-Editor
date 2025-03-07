@@ -35,7 +35,7 @@ class PosLineEdit(QtWidgets.QLineEdit):
             return
 
         self.setText(str(pos + amount))
-        self.window().drawRoom()
+        self.window().state.changeToDraw()
 
 
 class RotLineEdit(QtWidgets.QLineEdit):
@@ -62,7 +62,7 @@ class RotLineEdit(QtWidgets.QLineEdit):
             return
 
         self.setText(str(rot))
-        self.window().drawRoom()
+        self.window().state.changeToDraw()
 
 
 class ActorLabel(QtWidgets.QLabel):
