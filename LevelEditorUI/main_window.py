@@ -205,20 +205,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.state.changeToDraw()
 
 
-    def enableEditor(self) -> None:
-        fields = self.ui.centralwidget.children()
-        for field in fields:
-            try:
-                field.setProperty('enabled', True)
-            except AttributeError: # some objects won't have this attribute
-                pass
-        abc_actors = list(copy.deepcopy(ACTORS))
-        abc_actors.sort()
-        for actor in abc_actors:
-            if not actor.startswith(('Player', 'null')):
-                self.ui.dataType.addItem(actor)
-
-
     def showError(self, error_message) -> None:
         """Opens a new QMessageBox with error_message as the text"""
 

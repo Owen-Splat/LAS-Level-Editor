@@ -1,6 +1,8 @@
 from LevelEditorCore.Tools.FixedHash import leb
+from LevelEditorCore.Data.data import ACTORS
 from PySide6 import QtWidgets
 from pathlib import Path
+import copy
 
 
 class ReadState:
@@ -21,9 +23,6 @@ class ReadState:
 
         # now we want to store the file location, but in the output dir rather than romfs dir
         path = Path(path)
-        file_name = path.name
-        level_name = file_name.split('_')[0]
-        window.file = window.out_path / 'region_common/level' / level_name / file_name
 
         try:
             with open(path, 'rb') as f:
@@ -35,8 +34,26 @@ class ReadState:
         except (AttributeError, FileNotFoundError, ValueError) as e:
             window.showError(e.args[0])
         else:
-            window.enableEditor()
+            self.enableEditor(window)
+            file_name = path.name
+            level_name = file_name.split('_')[0]
+            window.file = window.out_path / 'region_common/level' / level_name / file_name
             window.setWindowTitle(f"{window.app_name} - {path.stem}")
-            window.ui.listWidget.setEnabled(True)
             window.next_actor = 0
             window.state.changeToDraw(toggle_hide=True)
+
+
+    def enableEditor(self, window) -> None:
+        """Changes all the editor elements to an interactive state"""
+
+        fields = window.ui.centralwidget.children()
+        for field in fields:
+            try:
+                field.setProperty('enabled', True)
+            except AttributeError: # some objects won't have this attribute
+                pass
+        abc_actors = list(copy.deepcopy(ACTORS))
+        abc_actors.sort()
+        for actor in abc_actors:
+            if not actor.startswith(('Player', 'null')):
+                window.ui.dataType.addItem(actor)
