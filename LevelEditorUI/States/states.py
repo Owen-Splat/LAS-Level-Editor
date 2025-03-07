@@ -1,4 +1,4 @@
-from LevelEditorUI.States import close, draw, idle, read, save, setup
+from LevelEditorUI.States import close, draw, idle, read, save, setup, update
 from enum import Enum, auto
 
 
@@ -6,6 +6,7 @@ class EditorState(Enum):
     SETUP = auto()
     IDLE = auto()
     READ = auto()
+    UPDATE = auto()
     DRAW = auto()
     EDIT = auto()
     SAVE = auto()
@@ -31,6 +32,12 @@ class StateMachine:
     def changeToRead(self, dragged_file=None) -> None:
         self.state = EditorState.READ
         read.ReadState(self.window, dragged_file)
+
+
+    def changeToUpdate(self) -> None:
+        self.state = EditorState.UPDATE
+        update.UpdateState(self.window)
+        self.changeToDraw()
 
 
     def changeToDraw(self, toggle_hide=False, hide_empty_sprites=True) -> None:
